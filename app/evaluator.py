@@ -14,14 +14,22 @@ from app.rag_pipeline import PatchContextRAG
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("PatchContext.Evaluator")
 
-def run_evaluation(num_questions: int = 5) -> None:
+def run_evaluation(num_questions: int = 50) -> None:
     """Runs RAGAs evaluation on a subset (or all) of the benchmark questions."""
     logger.info(f"Starting RAGAs evaluation on top {num_questions} questions...")
     
-    # Check OpenAI API Key
-    if not settings.openai_api_key:
-        logger.error("OPENAI_API_KEY environment variable is required to run RAGAs evaluations.")
-        return
+    # Configure environment variables for RAGAs internal ChatOpenAI evaluations
+    if settings.llm_provider.lower() == "openrouter":
+        if not settings.openrouter_api_key:
+            logger.error("OPENROUTER_API_KEY is required to run evaluations via OpenRouter.")
+            return
+        os.environ["OPENAI_API_KEY"] = settings.openrouter_api_key
+        os.environ["OPENAI_API_BASE"] = "https://openrouter.ai/api/v1"
+    else:
+        # Check OpenAI API Key
+        if not settings.openai_api_key:
+            logger.error("OPENAI_API_KEY environment variable is required to run RAGAs evaluations.")
+            return
         
     # Check questions file
     questions_path = "benchmark/questions.json"
@@ -46,6 +54,7 @@ def run_evaluation(num_questions: int = 5) -> None:
     ground_truths = []
     latencies = []
     confidence_scores = []
+    failed_questions = []
     
     # Run the pipeline on each question
     for idx, q_item in enumerate(eval_questions):
@@ -68,10 +77,24 @@ def run_evaluation(num_questions: int = 5) -> None:
             confidence_scores.append(res["confidence_score"])
         except Exception as e:
             logger.error(f"Failed to generate answer for question {idx+1} ('{q}'): {e}", exc_info=True)
+            failed_questions.append({
+                "question": q,
+                "ground_truth": gt,
+                "error": str(e)
+            })
         
         # Respect OpenAI rate limits between queries
         time.sleep(1.0)
         
+    # Define dataset features explicitly to ensure compatibility with Ragas
+    from datasets import Features, Sequence, Value
+    eval_features = Features({
+        "question": Value("string"),
+        "answer": Value("string"),
+        "contexts": Sequence(Value("string")),
+        "ground_truth": Value("string")
+    })
+    
     # Evaluate each question individually to avoid one failure crashing the entire RAGAs run
     eval_results_list = []
     question_scores = []
@@ -84,7 +107,7 @@ def run_evaluation(num_questions: int = 5) -> None:
             "ground_truth": [ground_truths[i]]
         }
         try:
-            single_dataset = Dataset.from_dict(single_dict)
+            single_dataset = Dataset.from_dict(single_dict, features=eval_features)
             logger.info(f"[{i+1}/{len(questions)}] Running RAGAs metrics on question: '{questions[i]}'")
             res_eval = evaluate(
                 dataset=single_dataset,
@@ -114,20 +137,23 @@ def run_evaluation(num_questions: int = 5) -> None:
     
     if completed_count > 0:
         for metric in mean_metrics.keys():
-            total = sum(float(r.get(metric, 0.0)) for r in eval_results_list)
+            total = sum(float(r.get(metric, 0.0)) for r in eval_results_list if r is not None and metric in r)
             mean_metrics[metric] = total / completed_count
             
     # Structure full report
     report = {
         "summary": {
-            "num_questions": len(eval_questions),
-            "completed_evaluations": completed_count,
+            "num_questions_requested": num_questions,
+            "num_questions_loaded": len(eval_questions),
+            "num_completed": completed_count,
+            "num_failed": len(failed_questions),
             "evaluation_time": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             "mean_metrics": mean_metrics,
             "avg_latency_sec": sum(latencies) / len(latencies) if latencies else 0.0,
             "avg_nli_confidence": sum(confidence_scores) / len(confidence_scores) if confidence_scores else 0.0
         },
-        "results": []
+        "results": [],
+        "failed_questions": failed_questions
     }
     
     for i in range(len(questions)):

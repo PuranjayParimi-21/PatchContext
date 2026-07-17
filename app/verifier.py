@@ -15,31 +15,32 @@ class HallucinationGuard:
     
     def __init__(self, db: DatabaseManager):
         self.db = db
-        self.nli_pipeline = None
+        self.tokenizer = None
+        self.nli_model = None
         self._init_nli_model()
         
     def _init_nli_model(self) -> None:
-        """Loads the BART MNLI model if NLI verification is enabled in configuration."""
+        """Loads the tokenizer and model for BART MNLI if NLI verification is enabled."""
         if not settings.enable_nli_guard:
             logger.info("NLI Hallucination Guard is disabled in settings. Skipping model load.")
             return
             
         try:
-            logger.info(f"Loading NLI model: {settings.nli_model_name}...")
-            # Import transformers only when NLI is enabled to speed up baseline loading
-            from transformers import pipeline
+            logger.info(f"Loading NLI model and tokenizer: {settings.nli_model_name}...")
+            from transformers import AutoTokenizer, AutoModelForSequenceClassification
             import torch
             
-            device = 0 if torch.cuda.is_available() else -1
-            self.nli_pipeline = pipeline(
-                "zero-shot-classification",
-                model=settings.nli_model_name,
-                device=device
-            )
-            logger.info("NLI model loaded successfully.")
+            self.tokenizer = AutoTokenizer.from_pretrained(settings.nli_model_name)
+            self.nli_model = AutoModelForSequenceClassification.from_pretrained(settings.nli_model_name)
+            
+            # Use GPU if available
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.nli_model.to(self.device)
+            logger.info(f"NLI model loaded successfully on {self.device}.")
         except Exception as e:
             logger.error(f"Failed to load NLI model: {e}. NLI validation will be bypassed.", exc_info=True)
-            self.nli_pipeline = None
+            self.tokenizer = None
+            self.nli_model = None
 
     def parse_citations(self, text: str) -> Dict[str, Set[str]]:
         """Parses strict citation patterns [Commit SHA], [PR Number], [Issue Number] from text."""
@@ -172,26 +173,22 @@ class HallucinationGuard:
         retrieved_docs: List[Document]
     ) -> Tuple[str, float, Dict[str, float]]:
         """
-        Uses BART zero-shot classification to calculate confidence score.
-        Compares the premise (concatenated context) against each sentence (claim) in the answer.
-        Filters out unsupported sentences. If no sentences are supported, rejects the answer.
+        Uses BART MNLI sequence classification to calculate confidence score.
+        For every claim/sentence carrying a citation:
+        1. Identifies the citation references (PR, Commit, Issue).
+        2. Retrieves the supporting documents from the retrieved context for those citations.
+        3. Formulates a premise-hypothesis pair: premise=supporting context, hypothesis=sentence/claim.
+        4. Runs sequence classification and extracts probability of the entailment label (index 2).
+        5. If the score is below the configured NLI threshold, the sentence is stripped.
         """
         t_start = time.perf_counter()
         
-        # Guard clause: bypass NLI if not initialized or if answer is empty
-        if not self.nli_pipeline or not answer or answer == "I couldn't find sufficient evidence.":
+        # Guard clause: bypass NLI if not initialized, if answer is empty, or if we already rejected it
+        if not self.nli_model or not self.tokenizer or not answer or answer == "I couldn't find sufficient evidence.":
             return answer, 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
             
         try:
-            # Construct premise from top retrieval chunks
-            premise = "\n\n".join([doc.page_content for doc in retrieved_docs])
-            
-            # If premise is empty, confidence is zero
-            if not premise.strip():
-                return "I couldn't find sufficient evidence.", 0.0, {"nli_eval_latency": time.perf_counter() - t_start}
-                
-            # Limit premise length to prevent model token overflow
-            premise = premise[:4000]
+            import torch
             
             # Split answer into sentences
             raw_sentences = re.split(r'(?<=[.!?])\s+', answer)
@@ -199,23 +196,65 @@ class HallucinationGuard:
             
             valid_sentences = []
             scores = []
-            threshold = 0.5
+            threshold = settings.nli_entailment_threshold
             
             for sentence in sentences:
-                # If a sentence is very short, keep it
-                if len(sentence.split()) < 3:
+                # Check if this sentence contains any citations
+                parsed = self.parse_citations(sentence)
+                has_citations = any(parsed[category] for category in parsed)
+                
+                # If a sentence does not carry any citations, keep it as is (no NLI check needed)
+                if not has_citations:
                     valid_sentences.append(sentence)
                     continue
                     
-                result = self.nli_pipeline(
-                    sequences=sentence,
-                    candidate_labels=["supported by context", "unsupported by context"],
-                    hypothesis_template=f"Based on this premise: {premise}. The statement: '{{}}' is true.",
-                )
+                # Identify supporting context for the citations in this sentence
+                supporting_texts = []
+                for doc in retrieved_docs:
+                    meta = doc.metadata
+                    dtype = str(meta.get("type", "")).lower()
+                    did = str(meta.get("id", "")).lower()
+                    
+                    if dtype == "commit" and parsed["commits"]:
+                        for sha in parsed["commits"]:
+                            if sha.startswith(did) or did.startswith(sha):
+                                supporting_texts.append(doc.page_content)
+                                break
+                    elif dtype == "pr" and parsed["prs"]:
+                        number = str(meta.get("number", ""))
+                        if number in parsed["prs"]:
+                            supporting_texts.append(doc.page_content)
+                    elif dtype == "issue" and parsed["issues"]:
+                        number = str(meta.get("number", ""))
+                        if number in parsed["issues"]:
+                            supporting_texts.append(doc.page_content)
+                            
+                premise = "\n\n".join(supporting_texts).strip()
                 
-                # Find the score for 'supported by context' label
-                supported_idx = result["labels"].index("supported by context")
-                entailment_score = float(result["scores"][supported_idx])
+                # If there is no supporting context (e.g. citations not found in retrieved docs),
+                # the claim is automatically unsupported.
+                if not premise:
+                    logger.info(f"NLI Guard: Removing sentence (no retrieved context matches citation): '{sentence}'")
+                    continue
+                    
+                # Limit premise length to prevent model token overflow
+                premise = premise[:4000]
+                
+                # Tokenize premise and hypothesis pair
+                inputs = self.tokenizer(
+                    premise, 
+                    sentence, 
+                    return_tensors="pt", 
+                    truncation=True, 
+                    max_length=1024
+                ).to(self.device)
+                
+                with torch.no_grad():
+                    outputs = self.nli_model(**inputs)
+                    probs = torch.softmax(outputs.logits, dim=-1)[0]
+                    # Label index 2 corresponds to ENTAILMENT
+                    entailment_score = float(probs[2].item())
+                    
                 scores.append(entailment_score)
                 
                 if entailment_score >= threshold:
@@ -236,3 +275,24 @@ class HallucinationGuard:
         except Exception as e:
             logger.error(f"Error running NLI validation: {e}. Bypassing NLI score.")
             return answer, 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
+
+    def format_citations_as_markdown(self, text: str) -> str:
+        """Converts [Commit <sha>], [PR <n>], [Issue <n>] tags into markdown links."""
+        repo = settings.github_repository
+        
+        def replace_commit(match):
+            sha = match.group(1)
+            return f"[Commit {sha[:7]}](https://github.com/{repo}/commit/{sha})"
+            
+        def replace_pr(match):
+            pr_num = match.group(1)
+            return f"[PR #{pr_num}](https://github.com/{repo}/pull/{pr_num})"
+            
+        def replace_issue(match):
+            issue_num = match.group(1)
+            return f"[Issue #{issue_num}](https://github.com/{repo}/issues/{issue_num})"
+            
+        text = re.sub(r'\[Commit\s+([a-f0-9]+)\]', replace_commit, text, flags=re.IGNORECASE)
+        text = re.sub(r'\[PR\s+(\d+)\]', replace_pr, text, flags=re.IGNORECASE)
+        text = re.sub(r'\[Issue\s+(\d+)\]', replace_issue, text, flags=re.IGNORECASE)
+        return text

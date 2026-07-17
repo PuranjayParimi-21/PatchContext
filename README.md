@@ -118,15 +118,15 @@ pytest tests/
 ```
 
 ### 4. Run RAGAs Evaluation Benchmarking
-To run the automated RAGAs metrics evaluation on your index:
+To run the automated RAGAs metrics evaluation on your index over the full 50-question benchmark:
 ```bash
-# Evaluate on 5 sample questions
-python -m app.evaluator --limit 5
-
-# Evaluate on all 50 questions
+# Evaluate on the full 50-question benchmark
 python -m app.evaluator --limit 50
 ```
 This evaluates the pipeline metrics (`Faithfulness`, `Answer Relevancy`, `Context Recall`, `Context Precision`, and `Answer Correctness`) and exports the report to `benchmark/answers.json`.
+
+> [!IMPORTANT]
+> The default vectorstore index files built with older dimensions have been deleted to ensure compatibility. Once a valid `OPENAI_API_KEY` is set in your `.env` file, you must rebuild the index by clicking **Rebuild Vector Index** in the Streamlit Admin panel sidebar, or by executing the indexing flow.
 
 ---
 

@@ -34,41 +34,7 @@ class PatchContextRAG:
         
         # Initialize LLM
         provider = settings.llm_provider.lower()
-        if provider == "local":
-            logger.info("Initializing Local LLM (google/flan-t5-small) via custom wrapper...")
-            from langchain_core.language_models.llms import LLM
-            from typing import Optional
-            from langchain_core.callbacks.manager import CallbackManagerForLLMRun
-            
-            class LocalFlanT5(LLM):
-                max_new_tokens: int = 250
-                _tokenizer: Any = None
-                _model: Any = None
-
-                def __init__(self, max_new_tokens: int = 250, **kwargs):
-                    super().__init__(**kwargs)
-                    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
-                    object.__setattr__(self, 'max_new_tokens', max_new_tokens)
-                    object.__setattr__(self, '_tokenizer', AutoTokenizer.from_pretrained("google/flan-t5-small"))
-                    object.__setattr__(self, '_model', AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small"))
-
-                @property
-                def _llm_type(self) -> str:
-                    return "local_flan_t5"
-
-                def _call(
-                    self,
-                    prompt: str,
-                    stop: Optional[List[str]] = None,
-                    run_manager: Optional[CallbackManagerForLLMRun] = None,
-                    **kwargs: Any,
-                ) -> str:
-                    inputs = self._tokenizer(prompt, return_tensors="pt")
-                    outputs = self._model.generate(**inputs, max_new_tokens=self.max_new_tokens)
-                    return self._tokenizer.decode(outputs[0], skip_special_tokens=True)
-
-            self.llm = LocalFlanT5(max_new_tokens=250)
-        elif provider == "openrouter":
+        if provider == "openrouter":
             logger.info(f"Initializing OpenRouter LLM ({settings.openrouter_model})...")
             if not settings.openrouter_api_key:
                 logger.warning("OPENROUTER_API_KEY environment variable is not set. LLM calls will fail.")
@@ -140,20 +106,12 @@ class PatchContextRAG:
         # 2. LLM Generation
         t_llm_start = time.perf_counter()
         provider = settings.llm_provider.lower()
-        if provider == "local":
-            logger.info("Generating answer via Local LLM (google/flan-t5-small)...")
-        else:
-            logger.info("Generating answer via GPT-4o-mini...")
+        logger.info(f"Generating answer via LLM ({provider})...")
             
         try:
-            if provider == "local":
-                prompt_str = QA_PROMPT.format(context=context_str, question=query)
-                response = self.llm.invoke(prompt_str)
-                raw_answer = response
-            else:
-                prompt_val = QA_PROMPT.format_prompt(context=context_str, question=query)
-                response = self.llm.invoke(prompt_val.to_messages())
-                raw_answer = response.content
+            prompt_val = QA_PROMPT.format_prompt(context=context_str, question=query)
+            response = self.llm.invoke(prompt_val.to_messages())
+            raw_answer = response.content
         except Exception as e:
             logger.error(f"Error generating answer: {e}", exc_info=True)
             raw_answer = f"An error occurred while calling the language model ({provider})."
@@ -168,6 +126,9 @@ class PatchContextRAG:
         logger.info("Computing NLI entailment confidence score...")
         cleaned_answer, nli_score, nli_metrics = self.guard.calculate_nli_entailment(cleaned_answer, retrieved_docs)
         latencies.update(nli_metrics)
+        
+        # Convert verified citation tags to markdown links
+        cleaned_answer = self.guard.format_citations_as_markdown(cleaned_answer)
         
         # Record total response time
         latencies["total_response_latency"] = time.perf_counter() - t_total_start

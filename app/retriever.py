@@ -11,8 +11,10 @@ from app.parser import DocumentParser
 logger = logging.getLogger("PatchContext.Retriever")
 
 class HybridRetriever:
-    """Performs hybrid retrieval using FAISS Vector Search (MMR) and BM25, 
-    expands context using the SQLite relationship graph, and re-ranks with a Cross-Encoder.
+    """Performs hybrid retrieval where LangChain's vector search via MMR (Maximal Marginal Relevance)
+    acts as the primary retrieval mechanism for semantic diversity. Other stages (BM25 search, 
+    SQLite relationship graph expansion, and Cross-Encoder re-ranking) serve only as supplementary 
+    stages to enhance and filter the MMR-retrieved candidates.
     """
     
     def __init__(self, db: DatabaseManager, vectorstore: FAISS):

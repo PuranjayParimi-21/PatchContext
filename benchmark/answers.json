@@ -1,37 +1,108 @@
 {
   "summary": {
-    "num_questions": 5,
-    "evaluation_time": "2026-07-14T17:37:00Z",
+    "num_questions_requested": 5,
+    "num_questions_loaded": 5,
+    "num_completed": 2,
+    "num_failed": 0,
+    "evaluation_time": "2026-07-17T12:37:58Z",
     "mean_metrics": {
-      "faithfulness": 0.925,
-      "answer_relevancy": 0.941,
-      "context_recall": 0.880,
-      "context_precision": 0.912
+      "faithfulness": NaN,
+      "answer_relevancy": 0.0,
+      "context_recall": NaN,
+      "context_precision": 0.45833333330208326,
+      "answer_correctness": 0.17522593306947754
     },
-    "avg_latency_sec": 4.15,
-    "avg_nli_confidence": 0.962
+    "avg_latency_sec": 4.875656339997659,
+    "avg_nli_confidence": 1.0
   },
   "results": [
     {
       "question": "Why was dependency injection introduced in FastAPI?",
-      "answer": "Dependency injection was introduced in FastAPI to allow easy code reuse, share database sessions, enforce security rules, and simplify unit testing by mocking dependencies [PR 42] [Issue 101].",
+      "answer": "I couldn't find sufficient evidence.",
       "ground_truth": "Dependency injection was introduced to allow reusable components, share database connections, enforce security/authentication, and simplify testing by mocking dependencies easily.",
-      "latency": 3.84,
-      "nli_confidence": 0.981,
+      "latency": 6.1110881000058725,
+      "nli_confidence": 1.0,
       "contexts": [
-        "Type: Pull Request\nPR Number: #42\nTitle: Support dependency injection injection\nDescription: Closes #101. Enables reusable component functions...",
-        "Type: Issue\nIssue Number: #101\nTitle: Dependency injection support\nBody: We need a clean way to share database connections..."
-      ]
+        "Type: Issue\nIssue Number: #297\nTitle: Is it considered bad practive to share a parameter between a dependency and its caller?\nBody: **Description**\r\n\r\nOne of the features of FastAPI's dependency injection system is grouping parameter sets and the related processing into separate functions and then added to function signatures to create what could very well be a large dependency tree. On occasions, the same parameters could need to be used at multiple levels of the dependency tree, and this creates a problem where the function parameter names *have to match* beween the parent and child.",
+        "- Comment: @dmontagu Sorry, I had missed your response. \r\nThis does seem like a perfectly valid approach, thanks a lot! \r\n\r\nWhat would be really nice, is for fastapi's dependency framework to be extracted from fastapi and offered as a standalone library. I haven't found another implementation of a dependency injection framework in python that is as seamless and easy to use.\r\nPerhaps with a manual entrypoint, like `resolve_dependencies(f) -> {\"dep1\": ..., \"dep2\": ...}`.",
+        "- Comment: @ebarlas you're 100% right. The way FastAPI documentation proposing app configuration assuming you have global variables for use with (angular-style inspired)? dependency injection, and in big projects it will be a huge mess, but MORE important - it's complex to write reusable modules for different apps.",
+        "I need to start a long-running, periodic task on the startup event of my application. This long-running task requires the global app configuration. In my path handlers, I am using FastAPI's dependency injection to access the config, making it very easy to mock the dependency in tests. However, as of now I see no way to use dependency injection to get the config in the startup event. For now I can handle this by modifying the environ through starlette.environ, but it would be nice if I could mock the config in there the same way as I am doing the rest of the time. Is there a way to do this, or",
+        "I have already re-written it to use dependency injection and it works quite beautifully. I just wanted to suggest documenting the little parts that don't work well together such as `requires`. I haven't come across anything else but maybe other cases exist.\n- Comment: Thanks @Midnighter . I'm glad it's working well for you now.\r\n\r\nI'm not sure what else might not work right away (I don't think there's much more). This is mainly becase Starlette also moves quite fast, for example, when FastAPI was created, there was not authentication middleware in Starlette..."
+      ],
+      "ragas_scores": {
+        "faithfulness": NaN,
+        "answer_relevancy": 0.0,
+        "context_recall": NaN,
+        "context_precision": 0.3333333333,
+        "answer_correctness": 0.17762539304163658
+      }
     },
     {
       "question": "Why did FastAPI migrate to support Pydantic v2?",
-      "answer": "FastAPI migrated to Pydantic v2 to leverage performance improvements (up to 20x faster compilation in Rust), clean validation errors, and updated model configurations [PR 500].",
+      "answer": "I couldn't find sufficient evidence.",
       "ground_truth": "FastAPI updated to Pydantic v2 to leverage substantial performance improvements, native Rust validation, cleaner schemas, and updated model configuration structures.",
-      "latency": 4.25,
-      "nli_confidence": 0.954,
+      "latency": 4.537780799990287,
+      "nli_confidence": 1.0,
       "contexts": [
-        "Type: Pull Request\nPR Number: #500\nTitle: Upgrade to Pydantic v2\nDescription: Migrates validation engine to Pydantic v2 for native speedups..."
-      ]
+        "-----\r\n\r\nThere is a relatively good reason for why this is hard to achieve with pydantic, and that is because FastAPI dependencies are built by reading the object signature. For a variety of reasons, Pydantic models don't have a signature that is compatible with fastapi dependencies. Even if we modified fastapi to handle pydantic models as a special case, it could still be hard to cover all edge cases due to things like the use of field aliases.\r\n\r\n-----",
+        "---\r\n\r\nI added some code to make it backwards compatible with Pydantic 0.32.2 with a lot of deprecation warnings. That should help developers migrating code bases.\r\n\r\nNow all the tests still pass with Pydantic 0.32.2 except the tests for the updated OpenAPI schemas, as the schema titles now have spaces instead of underscores, and the strict booleans. But all the rest still passes. That means that developer's codebases that somehow require Pydantic 0.32.2 will still work as expected in the next version of FastAPI, although with deprecation warnings.",
+        "- Comment: Right now Pydantic v2 is about to be released, that will include a bunch of features, and I want to update several things related to that here in FastAPI. Not sure what would be the effort and complexity involved in supporting this, but maybe we can check it again after that, maybe there's a way to achieve it, but I'll have to do the other things first.\r\n\r\n> Sorry for the long delay! 🙈  I wanted to personally address each issue/PR and they piled up through time, but now I'm checking each one in order.",
+        "------\r\n\r\nAlternatively, maybe FastAPI can move to a looser pinning of pydantic (e.g., `\"^1.0\"`) now that it has hit a major version? That would solve the issue completely, *and* make it easier to incorporate any additional new pydantic features!\n- Comment: I'll look at the mypy plugin soon, is it blocking the fastapi upgrade? Hopefully it'll be added as pydantic v1.1.",
+        "3. Opens the door for requests for special handling of other types in the future\r\n\r\nMoreover, because pydantic now runs its tests against FastAPI, it could potentially make it more difficult for pydantic to refactor the `Json` class in the future.\r\n\r\nI could be convinced otherwise if this was a common request, but so far that doesn't seem to be the case.\r\n\r\nThere may be alternative approaches to make this work though; I'll comment on them elsewhere."
+      ],
+      "ragas_scores": {
+        "faithfulness": NaN,
+        "answer_relevancy": 0.0,
+        "context_recall": NaN,
+        "context_precision": 0.5833333333041666,
+        "answer_correctness": 0.17282647309731847
+      }
+    },
+    {
+      "question": "How did FastAPI replace or integrate AnyIO?",
+      "answer": "I couldn't find sufficient evidence.",
+      "ground_truth": "FastAPI integrated AnyIO to support multiple asynchronous backends (both asyncio and trio) for running path operations, ensuring broader concurrency compatibility.",
+      "latency": 3.370592499995837,
+      "nli_confidence": 1.0,
+      "contexts": [
+        "By default, using FastAPI, your API will conform to the open standard OpenAPI, managed by the Linux Foundation. It is more flexible/less strict so it's easier to implement other generic use cases/databases that don't necessarily can be enforced to use JSON:API.\r\n\r\nAnother option you might want to look at is GraphQL. You can implement it with tools like Graphene or Ariadne, and integrate it directly into FastAPI.\n- Comment: Hello @tiangolo ,",
+        "Labels: question, question-migrate\nCreated At: 2019-05-25T17:05:00Z\nDiscussion Comments:\n- Comment: FastAPI should have **no issues** making use of non-async libraries. As long as you define your endpoints properly, you can still get the performance benefits of the async event loop as long as the non-async libraries are only blocking on IO. So yes, **a (non-async) library that sends requests to an external API should integrate nicely with a FastAPI-based backend**.\r\n\r\nFrom the FastAPI docs (https://fastapi.tiangolo.com/async/):",
+        "So, social login could be used independent of OpenAPI, FastAPI, how you handle authentication in your app, and even if your app has any OAuth2 related feature or not.\r\n\r\nAll these OAuth2 features that get integrated into your OpenAPI (generated automatically by FastAPI) are targeted mainly at the OAuth2 authentication provider. That means that, with FastAPI, you can build your own OAuth2 provider equivalent to Facebook, Google, GitHub, etc. You could have third-party applications that do social login using Facebook, Google, GitHub, AND your app.",
+        "Type: Issue\nIssue Number: #236\nTitle: aiohttp integration best practice\nBody: **Description**\r\nHi. First of all great work with fastapi. I am currently evaluating shifting one of my api gateway from sanic / aiohttp to using fastapi / aiohttp. I have a bunch of microservices exposing various rest / grpc apis. The aim of the api gateway (with fast api) is to front all of them and provide a nice versioned, documented api contract. A typical api route can send requests to different endpoints and integrate results to formulate a nice response from the api gateway. \r\n\r\nHow can I [...]?",
+        "---\r\n\r\nAbout background jobs, as FastAPI is fully based on Starlette and extends it, you can use [Starlette's integrated background tasks](https://www.starlette.io/background/). It is not in FastAPI's docs yet, but will come soon.\r\n\r\nFor these Starlette's background tasks to work in FastAPI you need to return a `Response` directly (to include the tasks in it): https://fastapi.tiangolo.com/tutorial/custom-response/\r\n\r\n---"
+      ],
+      "ragas_scores": {}
+    },
+    {
+      "question": "Which PR introduced Swagger UI custom configuration parameters?",
+      "answer": "PR #499 introduced new parameters to FastAPI's `init` method: `swagger_ui_client_id` and `swagger_ui_app_name` [PR #499]. These parameters allow for configuring the `clientId` and `appName` used by Swagger UI's `initOAuth` method [PR #499]. This PR was created on 2019-09-03T11:24:33Z and merged with commit SHA 8505b716af3879c18bf47f9d57a07aae94b58bcf [PR #499]. The changes addressed a need for additional Swagger UI configuration for OAuth2, as discussed in Issue #237 [PR #499, Issue #237].",
+      "ground_truth": "Swagger UI configurations were added to allow customizing settings like docExpansion, deepLinking, and default model expand depth directly in FastAPI initialization.",
+      "latency": 5.641206400003284,
+      "nli_confidence": 1.0,
+      "contexts": [
+        "Type: Pull Request\nPR Number: #499\nTitle: Make it possible to add swagger ui's clientId and appName\nDescription: Added 2 new parameters to FastAPI init:\r\n- swagger_ui_client_id\r\n- swagger_ui_app_name\r\n\r\nSwagger UI has a method initOAuth. We are using to of these: \r\n- clientId\r\n- appName\r\n\r\n[Reference to Swagger UI OAuth2 configuration](https://swagger.io/docs/open-source-tools/swagger-ui/usage/oauth2/)\r\n\r\nsee #237 \nMerged Commit SHA: 8505b716af3879c18bf47f9d57a07aae94b58bcf\nCreated At: 2019-09-03T11:24:33Z\nDiscussion Comments:",
+        "**Additional context**\r\n**Why do I need this?** \r\nWith a custom company Identity & Access Management with support for OAuth2 in place, we need some additional configuration in Swagger UI to get it to work. \r\nOne of the items is already in an PR #198. (alternative for this solution is also a get method with HTMLResponse as a return value)\r\n\r\nSome other settings we would like to set in Swagger UI are:\r\n\r\n- oauth2RedirectUrl setting, this makes it possible to redirect to another page then Swaggers default _http://url/oauth2-redirect.html_.",
+        "Type: Issue\nIssue Number: #237\nTitle: Configurable Swagger UI\nBody: I want to be able to set configurations of Swagger UI, but I can't do it the right way as it is hard coded right now.\r\n[Reference to Swagger UI configuration](https://swagger.io/docs/open-source-tools/swagger-ui/usage/configuration/)\r\n\r\n**Describe the solution you'd like**\r\nI would love to be able to set configurations through FastAPI object.\r\n\r\nThe normal Swagger UI configurations are easy to implement. However there are also some methods like _initOAuth_ which requests some additional checks in code.",
+        "| [tests/test\\_custom\\_swagger\\_ui\\_client\\_id.py](https://codecov.io/gh/tiangolo/fastapi/pull/499/diff?src=pr&el=tree#diff-dGVzdHMvdGVzdF9jdXN0b21fc3dhZ2dlcl91aV9jbGllbnRfaWQucHk=) | `100% <100%> (ø)` | |\n| [...s/test\\_custom\\_swagger\\_ui\\_client\\_id\\_and\\_app\\_name.py](https://codecov.io/gh/tiangolo/fastapi/pull/499/diff?src=pr&el=tree#diff-dGVzdHMvdGVzdF9jdXN0b21fc3dhZ2dlcl91aV9jbGllbnRfaWRfYW5kX2FwcF9uYW1lLnB5) | `100% <100%> (ø)` | |",
+        "| [tests/test\\_custom\\_swagger\\_ui\\_redirect.py](https://codecov.io/gh/tiangolo/fastapi/pull/499/diff?src=pr&el=tree#diff-dGVzdHMvdGVzdF9jdXN0b21fc3dhZ2dlcl91aV9yZWRpcmVjdC5weQ==) | `100% <0%> (ø)` | :arrow_up: |\n| [docs/src/first\\_steps/tutorial001.py](https://codecov.io/gh/tiangolo/fastapi/pull/499/diff?src=pr&el=tree#diff-ZG9jcy9zcmMvZmlyc3Rfc3RlcHMvdHV0b3JpYWwwMDEucHk=) | `100% <0%> (ø)` | :arrow_up: |"
+      ],
+      "ragas_scores": {}
+    },
+    {
+      "question": "Why was the APIRouter class modified to support custom route classes?",
+      "answer": "The `APIRouter` class was modified to support custom route classes to make it easier to override the default route-matching behavior [PR #468]. This change could simplify the implementation of version-based routing [PR #468]. Additionally, refactoring `APIRoute` aimed to make it easier to override individual pieces in subclasses and ensure that `APIRouter.include_router` preserves subclasses without re-instantiating `APIRoute`s [PR #568]. This also addressed the need to preserve the route class during inclusion for any routes that are subclasses of `APIRoute` when using `include_router` [PR #538].",
+      "ground_truth": "APIRouter was modified to allow custom APIRoute implementations, enabling developers to customize request serialization, error handling, or log request/response cycles.",
+      "latency": 4.717613899993012,
+      "nli_confidence": 1.0,
+      "contexts": [
+        "Type: Pull Request\nPR Number: #468\nTitle: Add support for custom route class\nDescription: This change would make it substantially easier to override the default route-matching behavior. In particular, this could simplify the implementation of version-based routing as discussed in https://github.com/tiangolo/fastapi/issues/200\r\n\r\nI created a pull request for this to aid in discussion since it was only a three line change, but before merging it would probably merit some updates to docs and tests.\r\n\r\nIn the absence of interest, I'll be happy to just close the pull request unmerged.",
+        "Type: Pull Request\nPR Number: #589\nTitle: Add better support for request body access/manipulation\nDescription: This pull request introduces a small change to `APIRoute` to make it easier to construct a custom `app` attribute in a custom subclass.\r\n\r\nThere is a lot of custom functionality that this change would simplify, but there are two especially important capabilities it adds:\r\n* A way to get handle exceptions with access to the request body\r\n* A way to modify the request body prior to its parsing/handling by FastAPI",
+        "This PR changes the behavior of `include_router` so that the route class is preserved during inclusion for any routes that are subclasses of `APIRoute`.\r\n\r\n-----\r\n\r\nCloses #539",
+        "Type: Pull Request\nPR Number: #568\nTitle: Refactor APIRoute for easier overrides\nDescription: This pull request refactors the `APIRoute` class for two main purposes:\r\n\r\n1. It makes it easier to override individual pieces in subclasses (e.g., `get_app`), and\r\n2. It makes it so that `APIRouter.include_router` does not require re-instantiating `APIRoute`s, so that subclasses can be preserved.\r\n\r\nThis pull request would eliminate the need for #538 and would help address #521 and #558.\nMerged Commit SHA: Not Merged\nCreated At: 2019-09-25T12:38:25Z\nDiscussion Comments:",
+        "- Comment: I'll close this issue now as I think this would be more or less a corner case, with quite some extra complexity.\r\n\r\nBut if you still need to implement some sophisticate extra features like these for your use case, it's now possible to subclass and override the `APIRouter`, and then you could also subclass `Query`, `Form`, etc. That way you can extend everything to suit your needs.\r\n\r\nhttps://fastapi.tiangolo.com/tutorial/custom-request-and-route/"
+      ],
+      "ragas_scores": {}
     }
-  ]
+  ],
+  "failed_questions": []
 }

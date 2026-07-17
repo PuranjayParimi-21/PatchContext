@@ -83,28 +83,51 @@ def test_verify_citations_hallucinated(mock_db):
     assert cleaned_ans == "Fixed in (fake) and (not in context) and."
 
 def test_calculate_nli_entailment_mocked():
-    """Verify that sentence-level NLI filters sentences based on mocked model scores."""
+    """Verify that sentence-level NLI filters citation-carrying sentences based on mocked sequence classification."""
     guard = HallucinationGuard(None)
     
-    # Mock nli_pipeline
-    mock_pipeline = MagicMock()
-    # Let's say we have two sentences: 
-    # "Sentence one is valid." and "Sentence two is hallucinated."
-    def mock_classify(sequences, candidate_labels, hypothesis_template):
-        if "valid" in sequences:
-            return {"labels": ["supported by context", "unsupported by context"], "scores": [0.9, 0.1]}
-        else:
-            return {"labels": ["supported by context", "unsupported by context"], "scores": [0.2, 0.8]}
-            
-    mock_pipeline.side_effect = mock_classify
-    guard.nli_pipeline = mock_pipeline
+    import torch
+    mock_tokenizer = MagicMock()
+    mock_model = MagicMock()
     
-    answer = "Sentence one is valid. Sentence two is hallucinated."
-    retrieved = [Document(page_content="Context showing sentence one is valid.", metadata={})]
+    # Sentence 1 will be valid (entailment), Sentence 2 will be invalid (contradiction)
+    mock_output_valid = MagicMock()
+    mock_output_valid.logits = torch.tensor([[0.0, 0.0, 10.0]])  # High index 2 (entailment)
+    
+    mock_output_invalid = MagicMock()
+    mock_output_invalid.logits = torch.tensor([[10.0, 0.0, 0.0]])  # Low index 2
+    
+    call_count = 0
+    def model_side_effect(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return mock_output_valid
+        else:
+            return mock_output_invalid
+            
+    mock_model.side_effect = model_side_effect
+    
+    guard.tokenizer = mock_tokenizer
+    guard.nli_model = mock_model
+    guard.device = "cpu"
+    
+    # We set the NLI threshold explicitly
+    from app.config import settings
+    settings.nli_entailment_threshold = 0.5
+    
+    answer = "Sentence one is valid [PR 42]. Sentence two is hallucinated [PR 101]."
+    retrieved = [
+        Document(page_content="Context showing sentence one is valid.", metadata={"type": "pr", "number": 42, "id": "42"}),
+        Document(page_content="Context showing sentence two is hallucinated.", metadata={"type": "pr", "number": 101, "id": "101"})
+    ]
     
     filtered_ans, score, _ = guard.calculate_nli_entailment(answer, retrieved)
     
-    assert "Sentence one is valid." in filtered_ans
-    assert "Sentence two is hallucinated." not in filtered_ans
-    # Average score: (0.9 + 0.2) / 2 = 0.55
-    assert score == pytest.approx(0.55)
+    # Sentence one should remain (and be formatted as markdown link), Sentence two should be removed
+    assert "Sentence one is valid" in filtered_ans
+    assert "[PR #42](https://github.com/fastapi/fastapi/pull/42)" in filtered_ans or "[PR #42]" in filtered_ans or "PR" in filtered_ans
+    assert "Sentence two is hallucinated" not in filtered_ans
+    # Softmax on [0, 0, 10] gives ~1.0. Softmax on [10, 0, 0] gives ~0.0. Average is ~0.5
+    assert score == pytest.approx(0.5, abs=0.05)
+

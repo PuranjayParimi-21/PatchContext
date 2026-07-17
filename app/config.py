@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     
     nli_model_name: str = Field(default="facebook/bart-large-mnli", validation_alias="NLI_MODEL_NAME")
     enable_nli_guard: bool = Field(default=True, validation_alias="ENABLE_NLI_GUARD")
+    nli_entailment_threshold: float = Field(default=0.5, validation_alias="NLI_ENTAILMENT_THRESHOLD")
     embedding_provider: str = Field(default="openai", validation_alias="EMBEDDING_PROVIDER")
     embedding_model: str = Field(default="text-embedding-ada-002", validation_alias="EMBEDDING_MODEL")
     llm_provider: str = Field(default="openai", validation_alias="LLM_PROVIDER")
