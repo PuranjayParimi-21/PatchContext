@@ -12,7 +12,7 @@ from app.config import settings
 class MockEmbeddings(Embeddings):
     """Mock embeddings helper to test vector stores offline without calling OpenAI."""
     def embed_documents(self, texts):
-        # text-embedding-3-small returns 1536-dimensional vectors
+        # text-embedding-ada-002 returns 1536-dimensional vectors
         return [[0.1] * 1536 for _ in texts]
         
     def embed_query(self, text):

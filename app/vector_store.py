@@ -38,6 +38,16 @@ def build_or_update_index(
     # 1. Load existing FAISS index
     vectorstore = load_vector_store(embeddings)
     
+    # If the vectorstore is missing, we reset the indexing status to force a full rebuild
+    if vectorstore is None:
+        logger.info("Vector store not found. Resetting database is_indexed flags to force full rebuild...")
+        with db._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE commits SET is_indexed = 0")
+            cursor.execute("UPDATE prs SET is_indexed = 0")
+            cursor.execute("UPDATE issues SET is_indexed = 0")
+            conn.commit()
+            
     # 2. Get unindexed items parsed and chunked
     new_chunks = parser.process_unindexed_items(db)
     if not new_chunks:

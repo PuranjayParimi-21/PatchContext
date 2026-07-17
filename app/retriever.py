@@ -20,6 +20,15 @@ class HybridRetriever:
         self.vectorstore = vectorstore
         self.parser = DocumentParser()
         
+        # Initialize LangChain MMR vector retriever
+        if self.vectorstore:
+            self.vector_retriever = self.vectorstore.as_retriever(
+                search_type="mmr",
+                search_kwargs={"k": 15, "fetch_k": 30, "lambda_mult": 0.7}
+            )
+        else:
+            self.vector_retriever = None
+            
         # Load Cross-Encoder model
         logger.info("Loading Cross-Encoder model (cross-encoder/ms-marco-MiniLM-L-6-v2)...")
         self.reranker = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
@@ -78,15 +87,10 @@ class HybridRetriever:
         # 1. Vector Search (MMR)
         t_start = time.perf_counter()
         vector_docs = []
-        if self.vectorstore:
+        if self.vector_retriever:
             try:
                 # We retrieve 15 documents via MMR search first to pass to the reranker
-                vector_docs = self.vectorstore.max_marginal_relevance_search(
-                    query, 
-                    k=15, 
-                    fetch_k=30, 
-                    lambda_mult=0.7
-                )
+                vector_docs = self.vector_retriever.invoke(query)
             except Exception as e:
                 logger.error(f"Vector search failed: {e}")
         metrics["vector_latency"] = time.perf_counter() - t_start

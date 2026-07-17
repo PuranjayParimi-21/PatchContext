@@ -80,12 +80,13 @@ class PatchContextRAG:
                 openai_api_base="https://openrouter.ai/api/v1"
             )
         else:
-            logger.info("Initializing ChatOpenAI (gpt-4o-mini)...")
+            model_name = settings.model if settings.model else "gpt-4o-mini"
+            logger.info(f"Initializing ChatOpenAI ({model_name})...")
             if not settings.openai_api_key:
                 logger.warning("OPENAI_API_KEY environment variable is not set. LLM calls will fail.")
                 
             self.llm = ChatOpenAI(
-                model="gpt-4o-mini",
+                model=model_name,
                 temperature=0.0,
                 openai_api_key=settings.openai_api_key
             )
@@ -165,7 +166,7 @@ class PatchContextRAG:
         
         # 4. NLI validation
         logger.info("Computing NLI entailment confidence score...")
-        nli_score, nli_metrics = self.guard.calculate_nli_entailment(cleaned_answer, retrieved_docs)
+        cleaned_answer, nli_score, nli_metrics = self.guard.calculate_nli_entailment(cleaned_answer, retrieved_docs)
         latencies.update(nli_metrics)
         
         # Record total response time

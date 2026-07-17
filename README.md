@@ -10,11 +10,11 @@ By retrieving evidence from local Git commit histories, Pull Requests, and Issue
 
 1. **GitHub GraphQL Data Extraction:** Extracts commits (via GitPython), Pull Requests, and Issues, supporting complete paginated downloads, checkpoint resume, and incremental caching.
 2. **Relationship Graph Storage:** Stores metadata in SQLite and links entities (e.g., `Issue` $\rightarrow$ `PR` $\rightarrow$ `Merge Commit`) to enable relationship-aware context expansion.
-3. **Hybrid Search (BM25 + Vector MMR):** Combines exact keyword matching (BM25) with semantic embeddings (`text-embedding-3-small` in FAISS) to retrieve relevant items.
+3. **Hybrid Search (BM25 + Vector MMR):** Combines exact keyword matching (BM25) with semantic embeddings using `text-embedding-ada-002` in FAISS, leveraging LangChain MMR (`search_type="mmr"`) with optimized parameters.
 4. **Cross-Encoder Re-ranking:** Re-ranks the combined context using `cross-encoder/ms-marco-MiniLM-L-6-v2` to deliver the top 5 highly relevant text fragments to the LLM.
-5. **Incremental Vector Indexing:** Employs tracking status flags in SQLite to embed and index only newly extracted data.
-6. **Hallucination Guard (BART NLI):** Performs zero-shot Natural Language Inference (`facebook/bart-large-mnli`) to verify that claims are entailed by context and removes any cited commits/PRs/issues that do not exist or were not retrieved.
-7. **Premium Streamlit Dashboard:** Displays live sync progress, repository sync statistics, latency metrics (retrieval, reranking, LLM, verification), confidence scores, and expandable source segments.
+5. **Incremental Vector Indexing:** Employs tracking status flags in SQLite to embed and index only newly extracted data, with automated database state resetting to facilitate full FAISS index rebuilding when needed.
+6. **Hallucination Guard (BART NLI):** Performs zero-shot Natural Language Inference (`facebook/bart-large-mnli`) comparing every generated claim against retrieved context. Filters out unsupported sentences below a `0.5` threshold or rejects the answer, enabled by default. Regex citation checks act as an additional validation layer.
+7. **Premium Streamlit Dashboard:** Displays live sync progress, repository sync statistics, latency metrics (retrieval, reranking, LLM, verification), confidence scores, and expandable source segments with clickable GitHub citations.
 
 ---
 
@@ -29,7 +29,7 @@ PatchContext/
 │   ├── database.py       # SQLite connection manager & relationship graph table
 │   ├── github_loader.py  # GitPython & GitHub GraphQL loader with paginated resume
 │   ├── parser.py         # Formats raw SQL records into LangChain Documents & chunking
-│   ├── embeddings.py     # OpenAI Embeddings setup (text-embedding-3-small)
+│   ├── embeddings.py     # OpenAI Embeddings setup (text-embedding-ada-002)
 │   ├── vector_store.py   # FAISS load, save, and incremental indexing logic
 │   ├── retriever.py      # BM25 + Vector search, Graph Expansion, and Re-ranking
 │   ├── prompt.py         # System prompting with strict citation rules
@@ -76,7 +76,10 @@ cp .env.example .env
 Ensure you set the following in `.env`:
 * `OPENAI_API_KEY`: Your OpenAI API credentials.
 * `GITHUB_TOKEN`: A GitHub Personal Access Token (PAT) to perform GraphQL requests.
-* `ENABLE_NLI_GUARD`: Set to `True` if you wish to run the local BART NLI model (requires ~1.6GB download and CPU/GPU resources). Set to `False` to run validation checks without NLI downloads.
+* `LLM_PROVIDER`: LLM provider name (defaults to `openai`).
+* `MODEL`: LLM model name (defaults to `gpt-4o-mini`).
+* `EMBEDDING_MODEL`: Embedding model name (defaults to `text-embedding-ada-002`).
+* `ENABLE_NLI_GUARD`: Enables/disables the BART NLI hallucination check (defaults to `true`).
 
 ### 2. Install dependencies
 Initialize virtualenv and install dependencies:
@@ -123,7 +126,7 @@ python -m app.evaluator --limit 5
 # Evaluate on all 50 questions
 python -m app.evaluator --limit 50
 ```
-This evaluates the pipeline metrics (`Faithfulness`, `Answer Relevancy`, `Context Recall`, `Context Precision`) and exports the report to `benchmark/answers.json`.
+This evaluates the pipeline metrics (`Faithfulness`, `Answer Relevancy`, `Context Recall`, `Context Precision`, and `Answer Correctness`) and exports the report to `benchmark/answers.json`.
 
 ---
 

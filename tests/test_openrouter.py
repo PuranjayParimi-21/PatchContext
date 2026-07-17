@@ -6,10 +6,17 @@ from app.rag_pipeline import PatchContextRAG
 
 
 def test_openrouter_settings():
-    """Verify that OpenRouter settings are correctly loaded from environment config."""
-    assert settings.llm_provider == "openrouter"
-    assert settings.openrouter_api_key == os.getenv("OPENROUTER_API_KEY")
-    assert settings.openrouter_model == "google/gemini-2.5-flash"
+    """Verify that OpenRouter settings can be loaded from config."""
+    from app.config import Settings
+    with patch.dict(os.environ, {
+        "LLM_PROVIDER": "openrouter",
+        "OPENROUTER_API_KEY": "sk-or-v1-test-key",
+        "OPENROUTER_MODEL": "google/gemini-2.5-flash"
+    }):
+        custom_settings = Settings()
+        assert custom_settings.llm_provider == "openrouter"
+        assert custom_settings.openrouter_api_key == "sk-or-v1-test-key"
+        assert custom_settings.openrouter_model == "google/gemini-2.5-flash"
 
 
 @patch("app.rag_pipeline.HybridRetriever")
@@ -22,17 +29,29 @@ def test_openrouter_llm_initialization(
     mock_load_vector_store,
     mock_hybrid_retriever,
 ):
-    """Verify that PatchContextRAG initializes ChatOpenAI with OpenRouter parameters."""
-
-    mock_db = MagicMock()
-    mock_load_vector_store.return_value = MagicMock()
-
-    rag = PatchContextRAG(mock_db)
-
-    mock_chat_openai.assert_called_once_with(
-        model="google/gemini-2.5-flash",
-        temperature=0.0,
-        max_tokens=1024,
-        openai_api_key=os.getenv("OPENROUTER_API_KEY"),
-        openai_api_base="https://openrouter.ai/api/v1",
-    )
+    """Verify that PatchContextRAG initializes ChatOpenAI with OpenRouter parameters when provider is openrouter."""
+    orig_provider = settings.llm_provider
+    orig_key = settings.openrouter_api_key
+    orig_model = settings.openrouter_model
+    
+    settings.llm_provider = "openrouter"
+    settings.openrouter_api_key = "sk-or-v1-fake-key"
+    settings.openrouter_model = "google/gemini-2.5-flash"
+    
+    try:
+        mock_db = MagicMock()
+        mock_load_vector_store.return_value = MagicMock()
+        
+        rag = PatchContextRAG(mock_db)
+        
+        mock_chat_openai.assert_called_once_with(
+            model="google/gemini-2.5-flash",
+            temperature=0.0,
+            max_tokens=1024,
+            openai_api_key="sk-or-v1-fake-key",
+            openai_api_base="https://openrouter.ai/api/v1",
+        )
+    finally:
+        settings.llm_provider = orig_provider
+        settings.openrouter_api_key = orig_key
+        settings.openrouter_model = orig_model

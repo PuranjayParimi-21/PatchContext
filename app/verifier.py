@@ -170,16 +170,17 @@ class HallucinationGuard:
         self, 
         answer: str, 
         retrieved_docs: List[Document]
-    ) -> Tuple[float, Dict[str, float]]:
+    ) -> Tuple[str, float, Dict[str, float]]:
         """
         Uses BART zero-shot classification to calculate confidence score.
-        Compares the premise (concatenated context) against the hypothesis (answer).
+        Compares the premise (concatenated context) against each sentence (claim) in the answer.
+        Filters out unsupported sentences. If no sentences are supported, rejects the answer.
         """
         t_start = time.perf_counter()
         
         # Guard clause: bypass NLI if not initialized or if answer is empty
         if not self.nli_pipeline or not answer or answer == "I couldn't find sufficient evidence.":
-            return 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
+            return answer, 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
             
         try:
             # Construct premise from top retrieval chunks
@@ -187,24 +188,51 @@ class HallucinationGuard:
             
             # If premise is empty, confidence is zero
             if not premise.strip():
-                return 0.0, {"nli_eval_latency": time.perf_counter() - t_start}
+                return "I couldn't find sufficient evidence.", 0.0, {"nli_eval_latency": time.perf_counter() - t_start}
                 
             # Limit premise length to prevent model token overflow
             premise = premise[:4000]
             
-            result = self.nli_pipeline(
-                sequences=answer,
-                candidate_labels=["supported by context", "unsupported by context"],
-                hypothesis_template=f"Based on this premise: {premise}. The statement: '{{}}' is true.",
-            )
+            # Split answer into sentences
+            raw_sentences = re.split(r'(?<=[.!?])\s+', answer)
+            sentences = [s.strip() for s in raw_sentences if s.strip()]
             
-            # Find the score for 'supported by context' label
-            supported_idx = result["labels"].index("supported by context")
-            entailment_score = float(result["scores"][supported_idx])
+            valid_sentences = []
+            scores = []
+            threshold = 0.5
             
-            logger.info(f"NLI Verification score: {entailment_score:.4f}")
-            return entailment_score, {"nli_eval_latency": time.perf_counter() - t_start}
+            for sentence in sentences:
+                # If a sentence is very short, keep it
+                if len(sentence.split()) < 3:
+                    valid_sentences.append(sentence)
+                    continue
+                    
+                result = self.nli_pipeline(
+                    sequences=sentence,
+                    candidate_labels=["supported by context", "unsupported by context"],
+                    hypothesis_template=f"Based on this premise: {premise}. The statement: '{{}}' is true.",
+                )
+                
+                # Find the score for 'supported by context' label
+                supported_idx = result["labels"].index("supported by context")
+                entailment_score = float(result["scores"][supported_idx])
+                scores.append(entailment_score)
+                
+                if entailment_score >= threshold:
+                    valid_sentences.append(sentence)
+                else:
+                    logger.info(f"NLI Guard: Removing unsupported sentence: '{sentence}' (score: {entailment_score:.4f})")
+                    
+            if not valid_sentences:
+                filtered_answer = "I couldn't find sufficient evidence."
+                final_score = 0.0
+            else:
+                filtered_answer = " ".join(valid_sentences)
+                final_score = sum(scores) / len(scores) if scores else 1.0
+                
+            logger.info(f"NLI Verification completed. Score: {final_score:.4f}")
+            return filtered_answer, final_score, {"nli_eval_latency": time.perf_counter() - t_start}
             
         except Exception as e:
             logger.error(f"Error running NLI validation: {e}. Bypassing NLI score.")
-            return 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
+            return answer, 1.0, {"nli_eval_latency": time.perf_counter() - t_start}

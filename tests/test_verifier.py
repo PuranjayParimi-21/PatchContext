@@ -4,6 +4,7 @@ from app.database import DatabaseManager
 from langchain_core.documents import Document
 import tempfile
 import os
+from unittest.mock import MagicMock
 
 @pytest.fixture
 def mock_db():
@@ -80,3 +81,30 @@ def test_verify_citations_hallucinated(mock_db):
     assert "[Issue 101]" not in cleaned_ans
     assert "[Commit abc999f12345]" not in cleaned_ans
     assert cleaned_ans == "Fixed in (fake) and (not in context) and."
+
+def test_calculate_nli_entailment_mocked():
+    """Verify that sentence-level NLI filters sentences based on mocked model scores."""
+    guard = HallucinationGuard(None)
+    
+    # Mock nli_pipeline
+    mock_pipeline = MagicMock()
+    # Let's say we have two sentences: 
+    # "Sentence one is valid." and "Sentence two is hallucinated."
+    def mock_classify(sequences, candidate_labels, hypothesis_template):
+        if "valid" in sequences:
+            return {"labels": ["supported by context", "unsupported by context"], "scores": [0.9, 0.1]}
+        else:
+            return {"labels": ["supported by context", "unsupported by context"], "scores": [0.2, 0.8]}
+            
+    mock_pipeline.side_effect = mock_classify
+    guard.nli_pipeline = mock_pipeline
+    
+    answer = "Sentence one is valid. Sentence two is hallucinated."
+    retrieved = [Document(page_content="Context showing sentence one is valid.", metadata={})]
+    
+    filtered_ans, score, _ = guard.calculate_nli_entailment(answer, retrieved)
+    
+    assert "Sentence one is valid." in filtered_ans
+    assert "Sentence two is hallucinated." not in filtered_ans
+    # Average score: (0.9 + 0.2) / 2 = 0.55
+    assert score == pytest.approx(0.55)

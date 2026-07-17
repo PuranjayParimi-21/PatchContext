@@ -182,6 +182,37 @@ if st.sidebar.button("Rebuild Vector Index", use_container_width=True):
 st.markdown("<h1 class='main-title'>PatchContext</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>AI assistant for FastAPI's development history, commits, pull requests, and issues.</p>", unsafe_allow_html=True)
 
+def make_clickable_citations(answer: str, citations: Dict[str, Any]) -> str:
+    import re
+    def replace_commit(match):
+        sha = match.group(1).lower()
+        for verified_sha, status in citations["commits"].items():
+            if (verified_sha.startswith(sha) or sha.startswith(verified_sha)) and status["verified"]:
+                url = f"https://github.com/fastapi/fastapi/commit/{verified_sha}"
+                return f"[Commit {sha[:7]}]({url})"
+        return match.group(0)
+        
+    def replace_pr(match):
+        pr_num = match.group(1)
+        status = citations["prs"].get(pr_num)
+        if status and status["verified"]:
+            url = f"https://github.com/fastapi/fastapi/pull/{pr_num}"
+            return f"[PR #{pr_num}]({url})"
+        return match.group(0)
+        
+    def replace_issue(match):
+        issue_num = match.group(1)
+        status = citations["issues"].get(issue_num)
+        if status and status["verified"]:
+            url = f"https://github.com/fastapi/fastapi/issues/{issue_num}"
+            return f"[Issue #{issue_num}]({url})"
+        return match.group(0)
+        
+    answer = re.sub(r'\[Commit\s+([a-f0-9]+)\]', replace_commit, answer, flags=re.IGNORECASE)
+    answer = re.sub(r'\[PR\s+(\d+)\]', replace_pr, answer, flags=re.IGNORECASE)
+    answer = re.sub(r'\[Issue\s+(\d+)\]', replace_issue, answer, flags=re.IGNORECASE)
+    return answer
+
 # User Query Input
 query = st.text_input("Ask a question about FastAPI's git history or decisions:", placeholder="e.g., Why was dependency injection introduced?")
 
@@ -199,7 +230,8 @@ if st.button("Search & Analyze History", type="primary") or query:
             if result["answer"] == "I couldn't find sufficient evidence.":
                 st.warning(result["answer"])
             else:
-                st.info(result["answer"])
+                clickable_ans = make_clickable_citations(result["answer"], result["citations"])
+                st.info(clickable_ans)
                 
             # Performance Latency & Entailment Score Layout
             st.markdown("### Performance & Verification Metrics")
@@ -236,27 +268,42 @@ if st.button("Search & Analyze History", type="primary") or query:
                 for sha, status in citations["commits"].items():
                     badge_style = "badge-success" if status["verified"] else "badge-danger"
                     status_text = "Verified: Exists in DB & Retrieved Context" if status["verified"] else "Hallucination Rejected"
+                    if status["verified"]:
+                        url = f"https://github.com/fastapi/fastapi/commit/{sha}"
+                        link_html = f"<a href='{url}' target='_blank'><code>{sha[:7]}</code></a>"
+                    else:
+                        link_html = f"<code>{sha[:7]}</code>"
                     st.markdown(
                         f"<div class='citation-list'><span class='badge {badge_style}'>COMMIT</span> "
-                        f"<code>{sha[:7]}</code> &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
+                        f"{link_html} &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
                         unsafe_allow_html=True
                     )
                     
                 for pr, status in citations["prs"].items():
                     badge_style = "badge-success" if status["verified"] else "badge-danger"
                     status_text = "Verified: Exists in DB & Retrieved Context" if status["verified"] else "Hallucination Rejected"
+                    if status["verified"]:
+                        url = f"https://github.com/fastapi/fastapi/pull/{pr}"
+                        link_html = f"<a href='{url}' target='_blank'><code>#{pr}</code></a>"
+                    else:
+                        link_html = f"<code>#{pr}</code>"
                     st.markdown(
                         f"<div class='citation-list'><span class='badge {badge_style}'>PR</span> "
-                        f"<code>#{pr}</code> &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
+                        f"{link_html} &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
                         unsafe_allow_html=True
                     )
                     
                 for issue, status in citations["issues"].items():
                     badge_style = "badge-success" if status["verified"] else "badge-danger"
                     status_text = "Verified: Exists in DB & Retrieved Context" if status["verified"] else "Hallucination Rejected"
+                    if status["verified"]:
+                        url = f"https://github.com/fastapi/fastapi/issues/{issue}"
+                        link_html = f"<a href='{url}' target='_blank'><code>#{issue}</code></a>"
+                    else:
+                        link_html = f"<code>#{issue}</code>"
                     st.markdown(
                         f"<div class='citation-list'><span class='badge {badge_style}'>ISSUE</span> "
-                        f"<code>#{issue}</code> &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
+                        f"{link_html} &mdash; {status_text} (DB: {status['exists_db']}, Context: {status['in_context']})</div>",
                         unsafe_allow_html=True
                     )
             

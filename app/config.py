@@ -20,9 +20,11 @@ class Settings(BaseSettings):
     local_repo_path: str = Field(default="data/fastapi_repo", validation_alias="LOCAL_REPO_PATH")
     
     nli_model_name: str = Field(default="facebook/bart-large-mnli", validation_alias="NLI_MODEL_NAME")
-    enable_nli_guard: bool = Field(default=False, validation_alias="ENABLE_NLI_GUARD")
+    enable_nli_guard: bool = Field(default=True, validation_alias="ENABLE_NLI_GUARD")
     embedding_provider: str = Field(default="openai", validation_alias="EMBEDDING_PROVIDER")
+    embedding_model: str = Field(default="text-embedding-ada-002", validation_alias="EMBEDDING_MODEL")
     llm_provider: str = Field(default="openai", validation_alias="LLM_PROVIDER")
+    model: str = Field(default="gpt-4o-mini", validation_alias="MODEL")
     openrouter_api_key: Optional[str] = Field(default=None, validation_alias="OPENROUTER_API_KEY")
     openrouter_model: str = Field(default="google/gemini-2.5-flash", validation_alias="OPENROUTER_MODEL")
 
