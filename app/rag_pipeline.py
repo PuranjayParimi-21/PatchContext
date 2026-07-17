@@ -1,0 +1,184 @@
+import time
+import logging
+from typing import Dict, Any, List
+from langchain_openai import ChatOpenAI
+from app.config import settings
+from app.database import DatabaseManager
+from app.vector_store import load_vector_store
+from app.embeddings import get_embeddings
+from app.retriever import HybridRetriever
+from app.verifier import HallucinationGuard
+from app.prompt import QA_PROMPT
+
+logger = logging.getLogger("PatchContext.RagPipeline")
+
+class PatchContextRAG:
+    """Core RAG pipeline linking retrieval, LLM generation, citation check, and NLI verification."""
+    
+    def __init__(self, db: DatabaseManager):
+        self.db = db
+        self.embeddings = get_embeddings()
+        
+        # Load vector store
+        self.vectorstore = load_vector_store(self.embeddings)
+        
+        # Initialize retriever (rebuilds BM25 based on DB)
+        if self.vectorstore:
+            self.retriever = HybridRetriever(self.db, self.vectorstore)
+        else:
+            logger.warning("Vector store not found. Hybrid retriever initialization delayed.")
+            self.retriever = None
+            
+        # Initialize hallucination guard
+        self.guard = HallucinationGuard(self.db)
+        
+        # Initialize LLM
+        provider = settings.llm_provider.lower()
+        if provider == "local":
+            logger.info("Initializing Local LLM (google/flan-t5-small) via custom wrapper...")
+            from langchain_core.language_models.llms import LLM
+            from typing import Optional
+            from langchain_core.callbacks.manager import CallbackManagerForLLMRun
+            
+            class LocalFlanT5(LLM):
+                max_new_tokens: int = 250
+                _tokenizer: Any = None
+                _model: Any = None
+
+                def __init__(self, max_new_tokens: int = 250, **kwargs):
+                    super().__init__(**kwargs)
+                    from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+                    object.__setattr__(self, 'max_new_tokens', max_new_tokens)
+                    object.__setattr__(self, '_tokenizer', AutoTokenizer.from_pretrained("google/flan-t5-small"))
+                    object.__setattr__(self, '_model', AutoModelForSeq2SeqLM.from_pretrained("google/flan-t5-small"))
+
+                @property
+                def _llm_type(self) -> str:
+                    return "local_flan_t5"
+
+                def _call(
+                    self,
+                    prompt: str,
+                    stop: Optional[List[str]] = None,
+                    run_manager: Optional[CallbackManagerForLLMRun] = None,
+                    **kwargs: Any,
+                ) -> str:
+                    inputs = self._tokenizer(prompt, return_tensors="pt")
+                    outputs = self._model.generate(**inputs, max_new_tokens=self.max_new_tokens)
+                    return self._tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+            self.llm = LocalFlanT5(max_new_tokens=250)
+        elif provider == "openrouter":
+            logger.info(f"Initializing OpenRouter LLM ({settings.openrouter_model})...")
+            if not settings.openrouter_api_key:
+                logger.warning("OPENROUTER_API_KEY environment variable is not set. LLM calls will fail.")
+            self.llm = ChatOpenAI(
+                model=settings.openrouter_model,
+                temperature=0.0,
+                max_tokens=1024,
+                openai_api_key=settings.openrouter_api_key,
+                openai_api_base="https://openrouter.ai/api/v1"
+            )
+        else:
+            logger.info("Initializing ChatOpenAI (gpt-4o-mini)...")
+            if not settings.openai_api_key:
+                logger.warning("OPENAI_API_KEY environment variable is not set. LLM calls will fail.")
+                
+            self.llm = ChatOpenAI(
+                model="gpt-4o-mini",
+                temperature=0.0,
+                openai_api_key=settings.openai_api_key
+            )
+
+    def refresh_retriever(self) -> None:
+        """Reloads the vector store and BM25 indexes. Call this after a new extraction run."""
+        logger.info("Refreshing vector store and retriever...")
+        self.vectorstore = load_vector_store(self.embeddings)
+        if self.vectorstore:
+            self.retriever = HybridRetriever(self.db, self.vectorstore)
+        else:
+            logger.warning("Vector store still not found after refresh.")
+
+    def run(self, query: str) -> Dict[str, Any]:
+        """
+        Runs the full RAG pipeline for the given query:
+        Retrieves context, invokes the LLM, verifies citations, and runs NLI validation.
+        """
+        t_total_start = time.perf_counter()
+        latencies = {}
+        
+        # Guard clause: retriever not initialized
+        if not self.retriever:
+            self.refresh_retriever()
+            if not self.retriever:
+                return {
+                    "question": query,
+                    "answer": "System is not initialized. Please load repository data and build the vector index first.",
+                    "original_answer": "",
+                    "retrieved_docs": [],
+                    "citations": {"commits": {}, "prs": {}, "issues": {}},
+                    "confidence_score": 0.0,
+                    "latencies": {"total_response_latency": 0.0}
+                }
+                
+        # 1. Retrieve context
+        logger.info(f"Retrieving context for query: '{query}'")
+        retrieved_docs, retrieval_metrics = self.retriever.retrieve(query)
+        latencies.update(retrieval_metrics)
+        
+        # Format context for prompt
+        context_str = ""
+        if retrieved_docs:
+            context_str = "\n\n".join([
+                f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content}"
+                for doc in retrieved_docs
+            ])
+        else:
+            context_str = "No relevant context found."
+            
+        # 2. LLM Generation
+        t_llm_start = time.perf_counter()
+        provider = settings.llm_provider.lower()
+        if provider == "local":
+            logger.info("Generating answer via Local LLM (google/flan-t5-small)...")
+        else:
+            logger.info("Generating answer via GPT-4o-mini...")
+            
+        try:
+            if provider == "local":
+                prompt_str = QA_PROMPT.format(context=context_str, question=query)
+                response = self.llm.invoke(prompt_str)
+                raw_answer = response
+            else:
+                prompt_val = QA_PROMPT.format_prompt(context=context_str, question=query)
+                response = self.llm.invoke(prompt_val.to_messages())
+                raw_answer = response.content
+        except Exception as e:
+            logger.error(f"Error generating answer: {e}", exc_info=True)
+            raw_answer = f"An error occurred while calling the language model ({provider})."
+        latencies["llm_latency"] = time.perf_counter() - t_llm_start
+        
+        # 3. Citation Verification (Hallucination Guard)
+        logger.info("Verifying citations in generated answer...")
+        cleaned_answer, citation_results, verify_metrics = self.guard.verify_citations(raw_answer, retrieved_docs)
+        latencies.update(verify_metrics)
+        
+        # 4. NLI validation
+        logger.info("Computing NLI entailment confidence score...")
+        nli_score, nli_metrics = self.guard.calculate_nli_entailment(cleaned_answer, retrieved_docs)
+        latencies.update(nli_metrics)
+        
+        # Record total response time
+        latencies["total_response_latency"] = time.perf_counter() - t_total_start
+        
+        logger.info(f"Pipeline executed successfully in {latencies['total_response_latency']:.4f}s")
+        
+        return {
+            "question": query,
+            "answer": cleaned_answer,
+            "original_answer": raw_answer,
+            "retrieved_docs": retrieved_docs,
+            "citations": citation_results,
+            "confidence_score": nli_score,
+            "latencies": latencies
+        }

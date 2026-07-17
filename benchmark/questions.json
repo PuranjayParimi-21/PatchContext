@@ -1,0 +1,202 @@
+[
+  {
+    "question": "Why was dependency injection introduced in FastAPI?",
+    "ground_truth": "Dependency injection was introduced to allow reusable components, share database connections, enforce security/authentication, and simplify testing by mocking dependencies easily."
+  },
+  {
+    "question": "Why did FastAPI migrate to support Pydantic v2?",
+    "ground_truth": "FastAPI updated to Pydantic v2 to leverage substantial performance improvements, native Rust validation, cleaner schemas, and updated model configuration structures."
+  },
+  {
+    "question": "How did FastAPI replace or integrate AnyIO?",
+    "ground_truth": "FastAPI integrated AnyIO to support multiple asynchronous backends (both asyncio and trio) for running path operations, ensuring broader concurrency compatibility."
+  },
+  {
+    "question": "Which PR introduced Swagger UI custom configuration parameters?",
+    "ground_truth": "Swagger UI configurations were added to allow customizing settings like docExpansion, deepLinking, and default model expand depth directly in FastAPI initialization."
+  },
+  {
+    "question": "Why was the APIRouter class modified to support custom route classes?",
+    "ground_truth": "APIRouter was modified to allow custom APIRoute implementations, enabling developers to customize request serialization, error handling, or log request/response cycles."
+  },
+  {
+    "question": "How is the WebSocket routing implemented in FastAPI?",
+    "ground_truth": "WebSocket routing is implemented using an APIWebSocketRoute class that extends Starlette's WebSocket routing to support dependencies and dependency injection."
+  },
+  {
+    "question": "Which issue discusses the deprecation of startup and shutdown event handlers?",
+    "ground_truth": "Startup and shutdown events are deprecated in favor of using lifespan async context managers, which offer a cleaner way to manage resources during the application lifetime."
+  },
+  {
+    "question": "Why did FastAPI introduce support for custom exception handlers?",
+    "ground_truth": "Custom exception handlers were introduced to override default validation error responses and allow custom JSON formats for HTTPExceptions and RequestValidationErrors."
+  },
+  {
+    "question": "What led to the introduction of sub-applications mounting support?",
+    "ground_truth": "FastAPI supports mounting sub-applications (like WSGI or other ASGI apps) using Starlette's Mount class to modularize routing and integrate external apps."
+  },
+  {
+    "question": "How did FastAPI handle Form data validation before Pydantic integration?",
+    "ground_truth": "FastAPI uses standard Form parameters backed by python-multipart, extracting values into form fields and validating them via Pydantic model fields in the endpoint signature."
+  },
+  {
+    "question": "Why was the security utility module separated into its own module?",
+    "ground_truth": "Separating security utilities (like OAuth2PasswordBearer) allows developers to import authentication dependencies independently and structure auth flow cleaner."
+  },
+  {
+    "question": "How is HTTP Basic authentication support implemented in FastAPI?",
+    "ground_truth": "HTTP Basic auth is supported via the HTTPBasic security scheme dependency, which parses the Authorization header and returns an HTTPBasicCredentials object."
+  },
+  {
+    "question": "Which commit added support for OAuth2 scopes?",
+    "ground_truth": "OAuth2 scopes support was added to validate granular permissions (SecurityScopes) on endpoints, allowing fine-grained user authorization matching token scopes."
+  },
+  {
+    "question": "Why did FastAPI change the default JSON encoder?",
+    "ground_truth": "FastAPI uses jsonable_encoder to safely serialize complex data types (like custom Pydantic models, datetimes, and databases rows) to standard JSON-compatible types."
+  },
+  {
+    "question": "How was CORS middleware support integrated?",
+    "ground_truth": "CORS middleware is imported directly from Starlette and added to the FastAPI application middleware stack to allow cross-origin requests."
+  },
+  {
+    "question": "What is the role of the Request class in FastAPI path operations?",
+    "ground_truth": "The Request class is a Starlette object representing the HTTP request. It can be declared as a parameter to access headers, cookies, client host, and raw body data."
+  },
+  {
+    "question": "Why was Response subclassing introduced?",
+    "ground_truth": "Response subclasses (like JSONResponse, HTMLResponse, RedirectResponse) were introduced to allow custom media types, response headers, and cookies to be set directly."
+  },
+  {
+    "question": "How is the OpenAPI description customizable?",
+    "ground_truth": "OpenAPI description is customizable via parameter inputs (title, description, version, termsOfService, contact, license) inside the FastAPI app constructor."
+  },
+  {
+    "question": "Why did FastAPI change default docs URL path configuration?",
+    "ground_truth": "FastAPI exposes documentation endpoints (docs_url='/docs', redoc_url='/redoc') by default, but allows setting them to None to disable docs in production environments."
+  },
+  {
+    "question": "How was support for Gzip middleware integrated?",
+    "ground_truth": "Gzip middleware is added from Starlette's middleware stack to automatically compress responses larger than a specified minimum size threshold."
+  },
+  {
+    "question": "Which commit or PR introduced custom JSON serializer option for responses?",
+    "ground_truth": "Custom JSON encoders can be specified by subclassing JSONResponse or custom encoder classes in response_class parameter of endpoints."
+  },
+  {
+    "question": "Why does FastAPI support background tasks?",
+    "ground_truth": "FastAPI provides BackgroundTasks (inheriting from Starlette) to run secondary operations (like sending emails or writing logs) after returning the response."
+  },
+  {
+    "question": "How are path parameters validated in FastAPI?",
+    "ground_truth": "Path parameters are validated using the Path class and metadata parameters (like gt, lt, ge, le) injected directly in path operation arguments."
+  },
+  {
+    "question": "How are query parameters validated in FastAPI?",
+    "ground_truth": "Query parameters are validated using the Query class, allowing requirements like min_length, max_length, pattern, and alias mappings."
+  },
+  {
+    "question": "Why does FastAPI use standard python type hints?",
+    "ground_truth": "FastAPI uses standard type hints to perform data parsing, validation, and auto-generate OpenAPI documentation without custom DSL schemas."
+  },
+  {
+    "question": "What is the purpose of the TestClient in FastAPI?",
+    "ground_truth": "TestClient (built on httpx) allows making requests directly to the FastAPI app without starting an active ASGI server, simplifying pytest assertions."
+  },
+  {
+    "question": "Why is the default doc expansion mode customizable?",
+    "ground_truth": "Customizing doc expansion prevents large API documentation pages from loading with all endpoint paths expanded, which slows down the browser render."
+  },
+  {
+    "question": "How are file uploads handled in FastAPI?",
+    "ground_truth": "File uploads are handled by declaring parameters of type UploadFile, which saves uploaded data in spool temporary files and exposes standard stream methods."
+  },
+  {
+    "question": "Why was the custom dataclass decorator introduced?",
+    "ground_truth": "FastAPI custom dataclass decorator supports using standard python dataclasses in request bodies and query params while maintaining auto-OpenAPI generation."
+  },
+  {
+    "question": "Which PR added support for multiple file uploads?",
+    "ground_truth": "Multiple file uploads are supported by declaring a parameter of type List[UploadFile] or List[bytes], allowing parsing multipart form payloads."
+  },
+  {
+    "question": "What is the default behavior when a validation error occurs?",
+    "ground_truth": "When validation fails, FastAPI raises a RequestValidationError and returns an HTTP 422 Unprocessable Entity response containing error details."
+  },
+  {
+    "question": "How does FastAPI support custom lifespan context managers?",
+    "ground_truth": "FastAPI accepts a lifespan parameter containing an async context manager, which runs initialization logic before startup and cleanup logic after shutdown."
+  },
+  {
+    "question": "How did FastAPI replace the standard starlette routing system?",
+    "ground_truth": "FastAPI overrides Starlette's Router with its own APIRouter to add dependency evaluation, OpenAPI metadata generation, and parameter injection."
+  },
+  {
+    "question": "Why is the SecurityScopes object useful in dependencies?",
+    "ground_truth": "SecurityScopes allows sub-dependencies to discover what scopes are required by parent endpoints, supporting modular OAuth2 security validation."
+  },
+  {
+    "question": "How are header parameters parsed and validated?",
+    "ground_truth": "Header parameters are parsed using the Header class, which automatically converts snake_case variables to kebab-case HTTP headers."
+  },
+  {
+    "question": "How are cookies parsed in FastAPI?",
+    "ground_truth": "Cookies are parsed using the Cookie class, which retrieves specific cookie keys from the request header and validates them using Pydantic."
+  },
+  {
+    "question": "Why was support for standard UUID validation added?",
+    "ground_truth": "UUID validation was added to support automatic type casting of string route inputs into Python's native UUID object before reaching the route function."
+  },
+  {
+    "question": "How is HTTP Exception handling customizable?",
+    "ground_truth": "FastAPI lets users add custom exception handlers for HTTPException class via the @app.exception_handler decorator."
+  },
+  {
+    "question": "Why was response_model_exclude_unset option introduced?",
+    "ground_truth": "This option allows serializing response payloads without including fields that were not explicitly set in the Pydantic model initialization."
+  },
+  {
+    "question": "How did FastAPI improve response serialization performance?",
+    "ground_truth": "FastAPI optimized response serialization by skipping double Pydantic validations and utilizing pre-computed model serializers when response_model is declared."
+  },
+  {
+    "question": "How is security security_schemes defined in OpenAPI metadata?",
+    "ground_truth": "Security schemes are defined automatically when security dependencies (like OAuth2PasswordBearer) are added as dependencies to the endpoints."
+  },
+  {
+    "question": "Why was the parameter 'response_model_by_alias' added?",
+    "ground_truth": "It allows serializing Pydantic models in responses using their defined alias names instead of their internal python field names."
+  },
+  {
+    "question": "How does FastAPI handle async versus sync path functions?",
+    "ground_truth": "Async functions are run directly in the ASGI event loop, whereas sync functions are run in a separate thread pool to prevent blocking the event loop."
+  },
+  {
+    "question": "What is the purpose of the status_code parameter in route decorators?",
+    "ground_truth": "The status_code parameter allows defining the default HTTP response code (e.g. 201 Created) returned upon successful execution of the route."
+  },
+  {
+    "question": "How are path operations grouped in Swagger UI docs?",
+    "ground_truth": "Path operations are grouped using the tags parameter in path decorators, which clusters endpoints under distinct visual labels in the docs."
+  },
+  {
+    "question": "Why does FastAPI support raw bytes in request bodies?",
+    "ground_truth": "Raw bytes support allows handling arbitrary payload formats, binary protocols, or custom parser integrations directly inside route handlers."
+  },
+  {
+    "question": "How is validation error message content formatted?",
+    "ground_truth": "ValidationError detail contains a JSON list of dictionaries, where each dict has loc (location), msg (error description), and type (error code)."
+  },
+  {
+    "question": "Why was oauth2_scheme introduced in FastAPI documentation examples?",
+    "ground_truth": "oauth2_scheme is a security helper used in examples to show how to secure routes and display the 'Authorize' lock button in Swagger UI."
+  },
+  {
+    "question": "How are custom lifespan events validated in unit tests?",
+    "ground_truth": "Lifespan events are validated by using the TestClient inside a 'with' context block, which triggers the startup and shutdown procedures."
+  },
+  {
+    "question": "Why does FastAPI support custom response classes?",
+    "ground_truth": "Custom response classes enable return types like ORJSONResponse or UJSONResponse for optimized JSON encoding speeds or HTMLResponse for web template rendering."
+  }
+]

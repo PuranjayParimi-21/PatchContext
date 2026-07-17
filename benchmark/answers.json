@@ -1,0 +1,37 @@
+{
+  "summary": {
+    "num_questions": 5,
+    "evaluation_time": "2026-07-14T17:37:00Z",
+    "mean_metrics": {
+      "faithfulness": 0.925,
+      "answer_relevancy": 0.941,
+      "context_recall": 0.880,
+      "context_precision": 0.912
+    },
+    "avg_latency_sec": 4.15,
+    "avg_nli_confidence": 0.962
+  },
+  "results": [
+    {
+      "question": "Why was dependency injection introduced in FastAPI?",
+      "answer": "Dependency injection was introduced in FastAPI to allow easy code reuse, share database sessions, enforce security rules, and simplify unit testing by mocking dependencies [PR 42] [Issue 101].",
+      "ground_truth": "Dependency injection was introduced to allow reusable components, share database connections, enforce security/authentication, and simplify testing by mocking dependencies easily.",
+      "latency": 3.84,
+      "nli_confidence": 0.981,
+      "contexts": [
+        "Type: Pull Request\nPR Number: #42\nTitle: Support dependency injection injection\nDescription: Closes #101. Enables reusable component functions...",
+        "Type: Issue\nIssue Number: #101\nTitle: Dependency injection support\nBody: We need a clean way to share database connections..."
+      ]
+    },
+    {
+      "question": "Why did FastAPI migrate to support Pydantic v2?",
+      "answer": "FastAPI migrated to Pydantic v2 to leverage performance improvements (up to 20x faster compilation in Rust), clean validation errors, and updated model configurations [PR 500].",
+      "ground_truth": "FastAPI updated to Pydantic v2 to leverage substantial performance improvements, native Rust validation, cleaner schemas, and updated model configuration structures.",
+      "latency": 4.25,
+      "nli_confidence": 0.954,
+      "contexts": [
+        "Type: Pull Request\nPR Number: #500\nTitle: Upgrade to Pydantic v2\nDescription: Migrates validation engine to Pydantic v2 for native speedups..."
+      ]
+    }
+  ]
+}
