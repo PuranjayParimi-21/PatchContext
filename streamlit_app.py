@@ -2,7 +2,9 @@ import streamlit as st
 import time
 import os
 import logging
+import json
 from typing import Dict, Any, List
+import streamlit.components.v1 as components
 from app.config import settings
 from app.database import DatabaseManager
 from app.github_loader import GitHubLoader
@@ -178,6 +180,56 @@ if st.sidebar.button("Rebuild Vector Index", use_container_width=True):
         except Exception as e:
             st.error(f"Indexing failed: {e}")
 
+def get_node_details(db, item_type: str, item_id: str):
+    # Fetch row from database
+    row = db.get_item(item_type, item_id)
+    repo = settings.github_repository
+    
+    label = ""
+    title = "Unknown"
+    summary = "No description available."
+    full_metadata = {}
+    url = ""
+    
+    if item_type == "commit":
+        label = f"Commit {item_id[:7]}"
+        url = f"https://github.com/{repo}/commit/{item_id}"
+        if row:
+            title = row["message"].split("\n")[0] if row["message"] else "No message"
+            summary = row["message"][:200] + "..." if row["message"] and len(row["message"]) > 200 else row["message"]
+            full_metadata = {
+                "Author": row["author"],
+                "Date": row["date"],
+                "SHA": row["sha"],
+                "Changed Files": row["changed_files"]
+            }
+    elif item_type == "pr":
+        label = f"PR #{item_id}"
+        url = f"https://github.com/{repo}/pull/{item_id}"
+        if row:
+            title = row["title"] if row["title"] else "No title"
+            summary = row["body"][:200] + "..." if row["body"] and len(row["body"]) > 200 else row["body"]
+            full_metadata = {
+                "Title": row["title"],
+                "Number": row["number"],
+                "Created At": row["created_at"],
+                "Merged Commit": row["merged_commit_sha"]
+            }
+    elif item_type == "issue":
+        label = f"Issue #{item_id}"
+        url = f"https://github.com/{repo}/issues/{item_id}"
+        if row:
+            title = row["title"] if row["title"] else "No title"
+            summary = row["body"][:200] + "..." if row["body"] and len(row["body"]) > 200 else row["body"]
+            full_metadata = {
+                "Title": row["title"],
+                "Number": row["number"],
+                "Created At": row["created_at"],
+                "Labels": row["labels"]
+            }
+            
+    return label, title, summary, full_metadata, url
+
 # Main panel
 st.markdown("<h1 class='main-title'>PatchContext</h1>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle'>AI assistant for FastAPI's development history, commits, pull requests, and issues.</p>", unsafe_allow_html=True)
@@ -222,16 +274,29 @@ if st.button("Search & Analyze History", type="primary") or query:
                 st.metric("LLM Gen Latency", f"{llm_latency:.2f}s")
             with col5:
                 st.metric("NLI Confidence", f"{nli_score*100:.1f}%")
-                
-            # Citation Verification Dashboard
+              # Citation Verification Dashboard
             st.markdown("### Citation Verification")
             citations = result["citations"]
             
-            has_citations = any(citations[category] for category in citations)
+            # Calculate counts
+            num_commits = len(citations["commits"])
+            num_prs = len(citations["prs"])
+            num_issues = len(citations["issues"])
+            total_citations = num_commits + num_prs + num_issues
             
-            if not has_citations:
-                st.write("No citations found in the response.")
+            verified_count = 0
+            for sha, status in citations["commits"].items():
+                if status["verified"]: verified_count += 1
+            for pr, status in citations["prs"].items():
+                if status["verified"]: verified_count += 1
+            for issue, status in citations["issues"].items():
+                if status["verified"]: verified_count += 1
+                
+            if total_citations == 0:
+                st.write("No citations found.")
             else:
+                st.markdown(f"**Total Citations Found:** {total_citations} | **Verified:** {verified_count} | **Rejected/Hallucinated:** {total_citations - verified_count}")
+                
                 # Group citations to render
                 for sha, status in citations["commits"].items():
                     badge_style = "badge-success" if status["verified"] else "badge-danger"
@@ -290,23 +355,404 @@ if st.button("Search & Analyze History", type="primary") or query:
                     st.markdown("---")
 
             # Relationship Graph Connections
-            with st.expander("SQLite Relationship Graph Visualization"):
-                st.markdown("Relationships found in the database linking the retrieved resources:")
-                rel_found = False
-                seen_relations = set()
-                for doc in result["retrieved_docs"]:
+            with st.expander("SQLite Relationship Graph Visualization", expanded=True):
+                # Gather all retrieved documents and their relationships
+                retrieved_docs = result["retrieved_docs"]
+                
+                nodes = {}
+                edges = []
+                seen_edges = set()
+                
+                for doc in retrieved_docs:
                     m = doc.metadata
-                    item_type = m.get("type")
-                    item_id = m.get("id")
+                    itype = str(m.get("type", "")).lower()
+                    iid = str(m.get("id", "")).lower()
                     
-                    if item_type and item_id:
-                        relations = db.get_related_items(item_type, item_id)
+                    if itype and iid:
+                        # Fetch full node details for source
+                        node_key = f"{itype}:{iid}"
+                        if node_key not in nodes:
+                            label, title, summary, meta, url = get_node_details(db, itype, iid)
+                            nodes[node_key] = {
+                                "id": node_key,
+                                "node_id": iid,
+                                "label": label,
+                                "type": itype,
+                                "title": title,
+                                "summary": summary,
+                                "full_metadata": meta,
+                                "url": url
+                            }
+                            
+                        # Query relationships for this item
+                        relations = db.get_related_items(itype, iid)
                         for target_type, target_id, rel_type in relations:
-                            rel_key = tuple(sorted([f"{item_type}:{item_id}", f"{target_type}:{target_id}"])) + (rel_type,)
-                            if rel_key not in seen_relations:
-                                seen_relations.add(rel_key)
-                                rel_found = True
-                                emoji = " merges " if rel_type == "merges" else " references "
-                                st.write(f"🕸️ **{item_type.upper()} #{item_id}** {emoji} **{target_type.upper()} #{target_id}** (Relation: *{rel_type}*)")
-                if not rel_found:
-                    st.write("No relationships found among the retrieved documents.")
+                            t_type = str(target_type).lower()
+                            t_id = str(target_id).lower()
+                            
+                            # Clean the relationship type
+                            clean_rel = rel_type
+                            is_inverse = False
+                            if clean_rel.startswith("inverse_"):
+                                clean_rel = clean_rel[len("inverse_"):]
+                                is_inverse = True
+                                
+                            if is_inverse:
+                                src_t, src_id = t_type, t_id
+                                tgt_t, tgt_id = itype, iid
+                            else:
+                                src_t, src_id = itype, iid
+                                tgt_t, tgt_id = t_type, t_id
+                                
+                            src_key = f"{src_t}:{src_id}"
+                            tgt_key = f"{tgt_t}:{tgt_id}"
+                            
+                            # Add nodes if not present
+                            if src_key not in nodes:
+                                label, title, summary, meta, url = get_node_details(db, src_t, src_id)
+                                nodes[src_key] = {
+                                    "id": src_key,
+                                    "node_id": src_id,
+                                    "label": label,
+                                    "type": src_t,
+                                    "title": title,
+                                    "summary": summary,
+                                    "full_metadata": meta,
+                                    "url": url
+                                }
+                                
+                            if tgt_key not in nodes:
+                                label, title, summary, meta, url = get_node_details(db, tgt_t, tgt_id)
+                                nodes[tgt_key] = {
+                                    "id": tgt_key,
+                                    "node_id": tgt_id,
+                                    "label": label,
+                                    "type": tgt_t,
+                                    "title": title,
+                                    "summary": summary,
+                                    "full_metadata": meta,
+                                    "url": url
+                                }
+                                
+                            edge_key = (src_key, tgt_key, clean_rel)
+                            if edge_key not in seen_edges:
+                                seen_edges.add(edge_key)
+                                edges.append({
+                                    "id": f"edge_{len(edges)}",
+                                    "source": src_key,
+                                    "target": tgt_key,
+                                    "label": clean_rel
+                                })
+                                
+                if not edges:
+                    st.write("No relationships found for the current query.")
+                else:
+                    # Construct vis.js compatible elements format
+                    vis_nodes = []
+                    vis_edges = []
+                    
+                    for node_key, node in nodes.items():
+                        ntype = node["type"]
+                        color_bg = "#ff9f43"
+                        color_border = "#f39c12"
+                        shape = "dot"
+                        
+                        if ntype == "pr":
+                            color_bg = "#a55eea"
+                            color_border = "#8e44ad"
+                            shape = "diamond"
+                        elif ntype == "issue":
+                            color_bg = "#ff7675"
+                            color_border = "#d63031"
+                            shape = "triangle"
+                            
+                        # Build HTML tooltip
+                        tooltip_html = f"<div style='font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, Helvetica, Arial, sans-serif; padding: 5px; color: #fff;'><strong>{node['label']}</strong><br/>{node['title']}</div>"
+                        
+                        vis_nodes.append({
+                            "id": node_key,
+                            "label": node["label"],
+                            "type": ntype,
+                            "title": tooltip_html,
+                            "color": {
+                                "background": color_bg,
+                                "border": color_border,
+                                "highlight": {"background": "#ffffff", "border": color_border},
+                                "hover": {"background": "#ffffff", "border": color_border}
+                            },
+                            "shape": shape,
+                            "borderWidth": 2,
+                            "size": 25 if ntype == "pr" else 20,
+                            "node_title": node["title"],
+                            "summary": node["summary"],
+                            "full_metadata": node["full_metadata"],
+                            "url": node["url"]
+                        })
+                        
+                    for edge in edges:
+                        vis_edges.append({
+                            "from": edge["source"],
+                            "to": edge["target"],
+                            "label": edge["label"]
+                        })
+                        
+                    nodes_json = json.dumps(vis_nodes)
+                    edges_json = json.dumps(vis_edges)
+                    
+                    html_template = """
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #0e1117;
+            color: #fafafa;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            height: 480px;
+            overflow: hidden;
+        }
+        #network-container {
+            flex: 7;
+            height: 100%;
+            border-right: 1px solid #30363d;
+            position: relative;
+        }
+        #mynetwork {
+            width: 100%;
+            height: 100%;
+        }
+        #details-panel {
+            flex: 3;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            background-color: #161b22;
+            box-sizing: border-box;
+        }
+        h3 {
+            margin-top: 0;
+            font-size: 1.25rem;
+            color: #58a6ff;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 8px;
+            font-weight: 600;
+        }
+        .node-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+            letter-spacing: 0.05em;
+        }
+        .badge-commit { background-color: rgba(255, 159, 67, 0.2); color: #ff9f43; border: 1px solid #ff9f43; }
+        .badge-pr { background-color: rgba(165, 94, 234, 0.2); color: #a55eea; border: 1px solid #a55eea; }
+        .badge-issue { background-color: rgba(255, 118, 117, 0.2); color: #ff7675; border: 1px solid #ff7675; }
+        
+        .resource-title {
+            font-size: 1rem;
+            font-weight: 600;
+            line-height: 1.4;
+            color: #f0f6fc;
+            margin-bottom: 12px;
+        }
+        .section-header {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: #8b949e;
+            margin: 16px 0 8px 0;
+            font-weight: 700;
+        }
+        .summary-box {
+            background-color: #21262d;
+            border: 1px solid #30363d;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            color: #c9d1d9;
+            white-space: pre-wrap;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+        .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+        }
+        .meta-table td {
+            padding: 6px 0;
+            font-size: 0.85rem;
+            border-bottom: 1px solid rgba(48, 54, 61, 0.5);
+        }
+        .meta-key {
+            font-weight: 600;
+            color: #8b949e;
+            width: 40%;
+        }
+        .meta-val {
+            color: #c9d1d9;
+            word-break: break-all;
+        }
+        .btn-link {
+            display: block;
+            background-color: #238636;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+            margin-top: auto;
+            transition: background-color 0.2s;
+        }
+        .btn-link:hover {
+            background-color: #2ea043;
+        }
+        .instructions {
+            color: #8b949e;
+            font-size: 0.85rem;
+            text-align: center;
+            margin-top: 40px;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div id="network-container">
+        <div id="mynetwork"></div>
+    </div>
+    <div id="details-panel">
+        <h3>Graph Details</h3>
+        <div id="click-info">
+            <div class="instructions">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#30363d" stroke-width="2" style="margin-bottom: 10px;">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="16" x2="12" y2="12"></line>
+                    <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <br/>
+                Click on any node in the graph to inspect its full metadata details and open it on GitHub.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var nodes = new vis.DataSet(__NODES_JSON__);
+        var edges = new vis.DataSet(__EDGES_JSON__);
+
+        var container = document.getElementById('mynetwork');
+        var data = {
+            nodes: nodes,
+            edges: edges
+        };
+        var options = {
+            nodes: {
+                borderWidth: 2,
+                size: 20,
+                font: {
+                    color: '#c9d1d9',
+                    size: 11,
+                    face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                },
+                shadow: {
+                    enabled: true,
+                    color: 'rgba(0,0,0,0.5)',
+                    size: 4,
+                    x: 2,
+                    y: 2
+                }
+            },
+            edges: {
+                width: 2,
+                smooth: {
+                    type: 'cubicBezier',
+                    forceDirection: 'none',
+                    roundness: 0.5
+                },
+                font: {
+                    color: '#8b949e',
+                    size: 9,
+                    face: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+                    strokeWidth: 0,
+                    align: 'top'
+                },
+                arrows: {
+                    to: { enabled: true, scaleFactor: 0.6 }
+                },
+                color: {
+                    color: '#30363d',
+                    highlight: '#58a6ff',
+                    hover: '#8b949e'
+                }
+            },
+            physics: {
+                forceAtlas2Based: {
+                    gravitationalConstant: -80,
+                    centralGravity: 0.02,
+                    springLength: 120,
+                    springConstant: 0.06
+                },
+                solver: 'forceAtlas2Based',
+                stabilization: {
+                    enabled: true,
+                    iterations: 150,
+                    fit: true
+                }
+            },
+            interaction: {
+                hover: true,
+                tooltipDelay: 150,
+                zoomView: true,
+                dragView: true,
+                dragNodes: true
+            }
+        };
+
+        var network = new vis.Network(container, data, options);
+
+        network.on("click", function (params) {
+            if (params.nodes.length > 0) {
+                var nodeId = params.nodes[0];
+                var clickedNode = nodes.get(nodeId);
+                
+                var badgeClass = 'badge-' + clickedNode.type;
+                var html = '<div class="node-badge ' + badgeClass + '">' + clickedNode.type + '</div>';
+                html += '<div class="resource-title">' + clickedNode.node_title + '</div>';
+                
+                html += '<div class="section-header">Summary</div>';
+                html += '<div class="summary-box">' + (clickedNode.summary || 'No summary description.') + '</div>';
+                
+                html += '<div class="section-header">Metadata</div>';
+                html += '<table class="meta-table">';
+                var meta = clickedNode.full_metadata || {};
+                for (var key in meta) {
+                    if (meta.hasOwnProperty(key)) {
+                        html += '<tr><td class="meta-key">' + key + '</td><td class="meta-val">' + meta[key] + '</td></tr>';
+                    }
+                }
+                html += '</table>';
+                
+                if (clickedNode.url) {
+                    html += '<a href="' + clickedNode.url + '" target="_blank" class="btn-link">Open in GitHub</a>';
+                }
+                
+                document.getElementById('click-info').innerHTML = html;
+            }
+        });
+    </script>
+</body>
+</html>
+""".replace("__NODES_JSON__", nodes_json).replace("__EDGES_JSON__", edges_json)
+                    
+                    components.html(html_template, height=500)

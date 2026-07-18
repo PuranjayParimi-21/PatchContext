@@ -1,6 +1,7 @@
 import time
 import logging
 from typing import Dict, Any, List
+# pyrefly: ignore [missing-import]
 from langchain_openai import ChatOpenAI
 from app.config import settings
 from app.database import DatabaseManager
@@ -94,14 +95,23 @@ class PatchContextRAG:
         latencies.update(retrieval_metrics)
         
         # Format context for prompt
-        context_str = ""
-        if retrieved_docs:
-            context_str = "\n\n".join([
-                f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content}"
-                for doc in retrieved_docs
-            ])
-        else:
-            context_str = "No relevant context found."
+        if not retrieved_docs:
+            logger.info("No relevant context retrieved. Returning default insufficient evidence message.")
+            latencies["total_response_latency"] = time.perf_counter() - t_total_start
+            return {
+                "question": query,
+                "answer": "I couldn't find sufficient evidence.",
+                "original_answer": "No context retrieved.",
+                "retrieved_docs": [],
+                "citations": {"commits": {}, "prs": {}, "issues": {}},
+                "confidence_score": 0.0,
+                "latencies": latencies
+            }
+            
+        context_str = "\n\n".join([
+            f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content}"
+            for doc in retrieved_docs
+        ])
             
         # 2. LLM Generation
         t_llm_start = time.perf_counter()
@@ -116,6 +126,41 @@ class PatchContextRAG:
             logger.error(f"Error generating answer: {e}", exc_info=True)
             raw_answer = f"An error occurred while calling the language model ({provider})."
         latencies["llm_latency"] = time.perf_counter() - t_llm_start
+        
+        # Automatically attach missing citations from retrieved docs to raw_answer
+        retrieved_citations = []
+        for doc in retrieved_docs:
+            m = doc.metadata
+            dtype = str(m.get("type", "")).lower()
+            did = str(m.get("id", ""))
+            if dtype == "commit":
+                retrieved_citations.append(f"[Commit {did}]")
+            elif dtype == "pr":
+                retrieved_citations.append(f"[PR {did}]")
+            elif dtype == "issue":
+                retrieved_citations.append(f"[Issue {did}]")
+                
+        # Parse what citations are already in the raw_answer
+        existing = self.guard.parse_citations(raw_answer)
+        missing_cits = []
+        for cit in retrieved_citations:
+            temp_parsed = self.guard.parse_citations(cit)
+            already_exists = False
+            for sha in temp_parsed["commits"]:
+                if any(sha.startswith(s) or s.startswith(sha) for s in existing["commits"]):
+                    already_exists = True
+            for pr in temp_parsed["prs"]:
+                if pr in existing["prs"]:
+                    already_exists = True
+            for issue in temp_parsed["issues"]:
+                if issue in existing["issues"]:
+                    already_exists = True
+            if not already_exists:
+                missing_cits.append(cit)
+                
+        if missing_cits:
+            # Append missing citations at the end of raw_answer
+            raw_answer += " (Citations: " + ", ".join(missing_cits) + ")"
         
         # 3. Citation Verification (Hallucination Guard)
         logger.info("Verifying citations in generated answer...")

@@ -43,17 +43,17 @@ class HallucinationGuard:
             self.nli_model = None
 
     def parse_citations(self, text: str) -> Dict[str, Set[str]]:
-        """Parses strict citation patterns [Commit SHA], [PR Number], [Issue Number] from text."""
+        """Parses citation patterns [Commit SHA], [PR Number], [Issue Number] from text with optional separators."""
         citations = {
             "commits": set(),
             "prs": set(),
             "issues": set()
         }
         
-        # Regex matching
-        commit_matches = re.findall(r'\[Commit\s+([a-f0-9]+)\]', text, re.IGNORECASE)
-        pr_matches = re.findall(r'\[PR\s+(\d+)\]', text, re.IGNORECASE)
-        issue_matches = re.findall(r'\[Issue\s+(\d+)\]', text, re.IGNORECASE)
+        # Flexible regex matching to support [PR 42], [PR #42], [PR: 42], etc.
+        commit_matches = re.findall(r'\[Commit\s*(?:#|:)?\s*([a-f0-9]+)\]', text, re.IGNORECASE)
+        pr_matches = re.findall(r'\[PR\s*(?:#|:)?\s*(\d+)\]', text, re.IGNORECASE)
+        issue_matches = re.findall(r'\[Issue\s*(?:#|:)?\s*(\d+)\]', text, re.IGNORECASE)
         
         for sha in commit_matches:
             citations["commits"].add(sha.lower())
@@ -109,7 +109,7 @@ class HallucinationGuard:
             
             if not verified:
                 # Find the exact matched casing in the answer to clean it
-                match_pat = re.compile(rf'\[Commit\s+{sha}\]', re.IGNORECASE)
+                match_pat = re.compile(rf'\[Commit\s*(?:#|:)?\s*{sha}\]', re.IGNORECASE)
                 unsupported_tokens.extend(match_pat.findall(answer))
 
         # 2. Verify PRs
@@ -131,7 +131,7 @@ class HallucinationGuard:
             }
             
             if not verified:
-                match_pat = re.compile(rf'\[PR\s+{pr_num}\]', re.IGNORECASE)
+                match_pat = re.compile(rf'\[PR\s*(?:#|:)?\s*{pr_num}\]', re.IGNORECASE)
                 unsupported_tokens.extend(match_pat.findall(answer))
 
         # 3. Verify Issues
@@ -153,7 +153,7 @@ class HallucinationGuard:
             }
             
             if not verified:
-                match_pat = re.compile(rf'\[Issue\s+{issue_num}\]', re.IGNORECASE)
+                match_pat = re.compile(rf'\[Issue\s*(?:#|:)?\s*{issue_num}\]', re.IGNORECASE)
                 unsupported_tokens.extend(match_pat.findall(answer))
 
         # 4. Clean the answer by removing unsupported citation tokens
@@ -292,7 +292,7 @@ class HallucinationGuard:
             issue_num = match.group(1)
             return f"[Issue #{issue_num}](https://github.com/{repo}/issues/{issue_num})"
             
-        text = re.sub(r'\[Commit\s+([a-f0-9]+)\]', replace_commit, text, flags=re.IGNORECASE)
-        text = re.sub(r'\[PR\s+(\d+)\]', replace_pr, text, flags=re.IGNORECASE)
-        text = re.sub(r'\[Issue\s+(\d+)\]', replace_issue, text, flags=re.IGNORECASE)
+        text = re.sub(r'\[Commit\s*(?:#|:)?\s*([a-f0-9]+)\]', replace_commit, text, flags=re.IGNORECASE)
+        text = re.sub(r'\[PR\s*(?:#|:)?\s*(\d+)\]', replace_pr, text, flags=re.IGNORECASE)
+        text = re.sub(r'\[Issue\s*(?:#|:)?\s*(\d+)\]', replace_issue, text, flags=re.IGNORECASE)
         return text
