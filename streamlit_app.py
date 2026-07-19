@@ -270,6 +270,9 @@ if st.button("Search & Analyze History", type="primary") or query:
             st.markdown("### Generated Answer")
             if result["answer"] == "I couldn't find sufficient evidence.":
                 st.warning(result["answer"])
+                if result.get("original_answer") and result["original_answer"] != "No context retrieved.":
+                    with st.expander("🔍 Show Raw LLM Answer (Failsafe Log)"):
+                        st.info(result["original_answer"])
             else:
                 st.markdown(result["answer"])
                 
