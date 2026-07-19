@@ -134,13 +134,14 @@ class PatchContextRAG:
             logger.error(f"Error generating answer with {self.llm.model_name}: {e}")
             llm_error = True
             if provider == "openrouter":
-                # Valid free models available on OpenRouter as of 2025
+                # Currently active free models on OpenRouter
                 fallbacks = [
-                    "meta-llama/llama-3.1-8b-instruct:free",
-                    "meta-llama/llama-3.2-3b-instruct:free",
-                    "microsoft/phi-3-mini-128k-instruct:free",
-                    "google/gemma-2-9b-it:free",
-                    "qwen/qwen-2-7b-instruct:free",
+                    "tencent/hy3:free",
+                    "meta-llama/llama-3.3-70b-instruct:free",
+                    "nousresearch/hermes-3-llama-3.1-405b:free",
+                    "cohere/north-mini-code:free",
+                    "google/gemma-4-31b-it:free",
+                    "qwen/qwen3-coder:free",
                 ]
                 success = False
                 for fallback_model in fallbacks:
