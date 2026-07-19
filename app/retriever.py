@@ -324,7 +324,8 @@ class HybridRetriever:
         logger.info("CrossEncoder scores:")
         for doc, score in scored_candidates:
             doc.metadata["rerank_score"] = float(score)
-            logger.info(f"  - Score {score:.4f} | {doc.metadata.get('type')} #{doc.metadata.get('id')} | Snippet: {doc.page_content[:60].replace('\n', ' ')}...")
+            snippet = doc.page_content[:60].replace('\n', ' ')
+            logger.info(f"  - Score {score:.4f} | {doc.metadata.get('type')} #{doc.metadata.get('id')} | Snippet: {snippet}...")
             
         # Select top k_final
         final_docs = [doc for doc, _ in scored_candidates[:k_final]]
