@@ -22,8 +22,16 @@ class GitHubLoader:
     def clone_or_update_repo(self) -> git.Repo:
         """Clones the FastAPI repo locally or updates it if already cloned."""
         local_path = settings.local_repo_path
-        if not os.path.exists(local_path):
-            logger.info(f"Cloning {self.repo_url} into {local_path}...")
+        git_dir = os.path.join(local_path, ".git")
+        
+        if not os.path.exists(local_path) or not os.path.exists(git_dir):
+            logger.info(f"Local repository path or .git directory is missing. Cloning {self.repo_url} into {local_path}...")
+            if os.path.exists(local_path):
+                import shutil
+                try:
+                    shutil.rmtree(local_path)
+                except Exception as e:
+                    logger.warning(f"Failed to remove invalid repo path {local_path}: {e}")
             repo = git.Repo.clone_from(self.repo_url, local_path)
             logger.info("Clone completed.")
         else:
