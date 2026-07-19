@@ -160,44 +160,58 @@ class HybridRetriever:
                 logger.info(f"Commit '{item_id}' not found in SQLite DB. Attempting dynamic import from local git repo...")
                 try:
                     git_repo_path = settings.local_repo_path
-                    if os.path.exists(git_repo_path):
-                        repo = git.Repo(git_repo_path)
-                        commit = repo.commit(item_id)
-                        sha = commit.hexsha
+                    git_dir = os.path.join(git_repo_path, ".git")
+                    
+                    # On-demand cloning if git repo is missing or invalid on deployment server
+                    if not os.path.exists(git_repo_path) or not os.path.exists(git_dir):
+                        logger.info(f"Git repository missing at {git_repo_path}. Cloning dynamically...")
+                        if os.path.exists(git_repo_path):
+                            import shutil
+                            try:
+                                shutil.rmtree(git_repo_path)
+                            except Exception:
+                                pass
+                        repo_url = "https://github.com/" + settings.github_repository
+                        git.Repo.clone_from(repo_url, git_repo_path)
+                        logger.info("Dynamic repository clone completed.")
                         
-                        # Compute files and diff
-                        changed_files = []
-                        diff_text = ""
-                        if commit.parents:
-                            diffs = commit.parents[0].diff(commit, create_patch=True)
-                        else:
-                            diffs = commit.diff(None, create_patch=True)
-                            
-                        for d in diffs:
-                            a_path = d.a_path or ""
-                            b_path = d.b_path or ""
-                            path = b_path if b_path else a_path
-                            if path:
-                                changed_files.append(path)
-                            if d.diff:
-                                try:
-                                    patch = d.diff.decode('utf-8', errors='ignore')
-                                    if len(diff_text) + len(patch) < 6000:
-                                        diff_text += f"\nFile: {path}\n{patch}"
-                                except Exception:
-                                    pass
-                                    
-                        # Insert into SQLite database so it exists
-                        self.db.insert_commit(
-                            sha=sha,
-                            author=commit.author.name,
-                            date=commit.committed_datetime.isoformat(),
-                            message=commit.message or "",
-                            changed_files=changed_files,
-                            diff=diff_text
-                        )
-                        logger.info(f"Successfully dynamically indexed commit {sha[:7]} into SQLite database.")
-                        row = self.db.get_item("commit", sha)
+                    repo = git.Repo(git_repo_path)
+                    commit = repo.commit(item_id)
+                    sha = commit.hexsha
+                    
+                    # Compute files and diff
+                    changed_files = []
+                    diff_text = ""
+                    if commit.parents:
+                        diffs = commit.parents[0].diff(commit, create_patch=True)
+                    else:
+                        diffs = commit.diff(None, create_patch=True)
+                        
+                    for d in diffs:
+                        a_path = d.a_path or ""
+                        b_path = d.b_path or ""
+                        path = b_path if b_path else a_path
+                        if path:
+                            changed_files.append(path)
+                        if d.diff:
+                            try:
+                                patch = d.diff.decode('utf-8', errors='ignore')
+                                if len(diff_text) + len(patch) < 6000:
+                                    diff_text += f"\nFile: {path}\n{patch}"
+                            except Exception:
+                                pass
+                                
+                    # Insert into SQLite database so it exists
+                    self.db.insert_commit(
+                        sha=sha,
+                        author=commit.author.name,
+                        date=commit.committed_datetime.isoformat(),
+                        message=commit.message or "",
+                        changed_files=changed_files,
+                        diff=diff_text
+                    )
+                    logger.info(f"Successfully dynamically indexed commit {sha[:7]} into SQLite database.")
+                    row = self.db.get_item("commit", sha)
                 except Exception as e:
                     logger.error(f"Failed to dynamically import commit '{item_id}' from git: {e}")
                     
