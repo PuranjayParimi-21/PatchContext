@@ -3,6 +3,17 @@ from typing import Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
 
+# Load Streamlit Cloud secrets into environment variables for Pydantic Settings
+try:
+    import streamlit as st
+    for k in st.secrets.keys():
+        val = st.secrets[k]
+        if isinstance(val, (str, int, float, bool)):
+            os.environ[k] = str(val)
+            os.environ[k.upper()] = str(val)
+except Exception:
+    pass
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
