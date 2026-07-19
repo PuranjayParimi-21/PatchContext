@@ -298,45 +298,14 @@ if rag_pipeline and hasattr(rag_pipeline, "guard"):
     rag_pipeline.guard.nli_model = "lightweight-stub"
     rag_pipeline.guard.device = "cpu"
 
-# Sidebar: Configurations and statistics
-st.sidebar.markdown("<h2 style='text-align: center; color: #FF4B4B;'>PatchContext Admin</h2>", unsafe_allow_html=True)
-
-# 1. API Token Status Check
+# Sidebar: Configurations only
 st.sidebar.subheader("Configuration Check")
 llm_provider = settings.llm_provider.lower()
-emb_provider = settings.embedding_provider.lower()
 
 st.sidebar.text(f"LLM Provider: {settings.llm_provider}")
-st.sidebar.text(f"Model: {settings.model or settings.openrouter_model}")
+st.sidebar.text(f"Model: {settings.openrouter_model if llm_provider == 'openrouter' else settings.model}")
 st.sidebar.text(f"Embedding Provider: {settings.embedding_provider}")
 st.sidebar.text(f"Embedding Model: {settings.embedding_model}")
-
-if llm_provider == "openrouter":
-    llm_ok = bool(settings.openrouter_api_key)
-    llm_label = "OpenRouter Key"
-else:
-    llm_ok = bool(settings.openai_api_key)
-    llm_label = "OpenAI Key"
-
-github_ok = bool(settings.github_token)
-
-col1, col2 = st.sidebar.columns(2)
-with col1:
-    if llm_ok:
-        st.success(f"{llm_label} OK")
-    else:
-        st.error(f"{llm_label} Missing")
-with col2:
-    if github_ok:
-        st.success("GitHub Token OK")
-    else:
-        st.warning("GitHub Token Missing")
-
-if emb_provider in ["local", "huggingface"]:
-    st.sidebar.success("Local Embeddings OK")
-else:
-    st.sidebar.warning(f"Using OpenAI/OpenRouter Embeddings")
-
 
 
 def get_node_details(db, item_type: str, item_id: str):
