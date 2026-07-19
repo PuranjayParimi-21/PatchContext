@@ -6,11 +6,17 @@ from pydantic import Field
 # Load Streamlit Cloud secrets into environment variables for Pydantic Settings
 try:
     import streamlit as st
-    for k in st.secrets.keys():
-        val = st.secrets[k]
-        if isinstance(val, (str, int, float, bool)):
-            os.environ[k] = str(val)
-            os.environ[k.upper()] = str(val)
+    # Check if a secrets.toml file actually exists before accessing st.secrets
+    secrets_paths = [
+        os.path.join(os.getcwd(), ".streamlit", "secrets.toml"),
+        os.path.expanduser("~/.streamlit/secrets.toml")
+    ]
+    if any(os.path.exists(p) for p in secrets_paths):
+        for k in st.secrets.keys():
+            val = st.secrets[k]
+            if isinstance(val, (str, int, float, bool)):
+                os.environ[k] = str(val)
+                os.environ[k.upper()] = str(val)
 except Exception:
     pass
 
