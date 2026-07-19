@@ -44,7 +44,8 @@ class PatchContextRAG:
                 temperature=0.3,
                 max_tokens=512,
                 openai_api_key=settings.openrouter_api_key,
-                openai_api_base="https://openrouter.ai/api/v1"
+                openai_api_base="https://openrouter.ai/api/v1",
+                model_kwargs={"stop": None}  # Prevent accidental stop-token truncation on free models
             )
         else:
             model_name = settings.model if settings.model else "gpt-4o-mini"
@@ -108,12 +109,11 @@ class PatchContextRAG:
                 "latencies": latencies
             }
             
-        # Truncate context to prevent exceeding free model token limits
-        # Free models (3B-9B) have ~4K token context window; keep context small
-        MAX_CONTEXT_CHARS = 4000
+        # Truncate context aggressively for free models (small context windows)
+        MAX_CONTEXT_CHARS = 2000
         context_parts = [
-            f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content[:800]}"
-            for doc in retrieved_docs[:5]
+            f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content[:400]}"
+            for doc in retrieved_docs[:4]
         ]
         context_str = "\n\n".join(context_parts)[:MAX_CONTEXT_CHARS]
             
