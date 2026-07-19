@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     openrouter_api_key: Optional[str] = Field(default=None, validation_alias="OPENROUTER_API_KEY")
     openrouter_model: str = Field(default="google/gemini-2.5-flash", validation_alias="OPENROUTER_MODEL")
 
+    def __init__(self, **values):
+        super().__init__(**values)
+        if not self.openai_api_key or self.openai_api_key.strip() == "":
+            self.openai_api_key = "missing-api-key"
+
 # Instantiate a global settings object
 settings = Settings()
 
