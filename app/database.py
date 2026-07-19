@@ -300,11 +300,17 @@ class DatabaseManager:
             return row['value'] if row else default
 
     def get_stats(self) -> Dict[str, int]:
-        """Returns counts of commits, PRs, issues, and relationships."""
-        stats = {}
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            for table in ("commits", "prs", "issues", "relationships"):
-                cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                stats[table] = cursor.fetchone()[0]
-        return stats
+        """Returns counts of commits, PRs, issues, and relationships. Auto-inits tables if missing."""
+        # Always ensure tables exist before querying (guards against fresh db on Streamlit Cloud)
+        self._init_db()
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                stats = {}
+                for table in ("commits", "prs", "issues", "relationships"):
+                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                    stats[table] = cursor.fetchone()[0]
+            return stats
+        except Exception as e:
+            logger.error(f"Error getting stats: {e}")
+            return {"commits": 0, "prs": 0, "issues": 0, "relationships": 0}
