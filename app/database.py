@@ -14,9 +14,16 @@ class DatabaseManager:
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Returns a connection to the SQLite database with row factory enabled."""
-        conn = sqlite3.connect(self.db_path)
+        """Returns a robust SQLite connection with WAL mode and timeout to prevent DatabaseError on Streamlit Cloud."""
+        conn = sqlite3.connect(
+            self.db_path,
+            timeout=30,           # Wait up to 30s for locks to clear before raising an error
+            check_same_thread=False  # Allow cross-thread use inside cache_resource
+        )
         conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")    # Allow concurrent reads during writes
+        conn.execute("PRAGMA synchronous=NORMAL")  # Balance safety and performance
+        conn.execute("PRAGMA busy_timeout=10000")  # SQLite busy timeout (10s)
         return conn
 
     def _init_db(self) -> None:
@@ -201,7 +208,7 @@ class DatabaseManager:
             conn.commit()
 
     def exists_in_db(self, item_type: str, item_id: Any) -> bool:
-        """Checks if a commit, PR, or issue exists in the database."""
+        """Checks if a commit, PR, or issue exists in the database. Returns False safely on any error."""
         table = item_type
         if table == "commit":
             table = "commits"
@@ -214,13 +221,17 @@ class DatabaseManager:
             return False
             
         id_col = "sha" if table == "commits" else "number"
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT 1 FROM {table} WHERE {id_col} = ? LIMIT 1", (str(item_id),))
-            return cursor.fetchone() is not None
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT 1 FROM {table} WHERE {id_col} = ? LIMIT 1", (str(item_id),))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking existence of {item_type} '{item_id}' in database: {e}")
+            return False
 
     def get_item(self, item_type: str, item_id: Any) -> Optional[Dict[str, Any]]:
-        """Retrieves a single commit, PR, or issue record."""
+        """Retrieves a single commit, PR, or issue record. Returns None safely on any error."""
         table = item_type
         if table == "commit":
             table = "commits"
@@ -233,11 +244,15 @@ class DatabaseManager:
             return None
             
         id_col = "sha" if table == "commits" else "number"
-        with self._get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute(f"SELECT * FROM {table} WHERE {id_col} = ?", (str(item_id),))
-            row = cursor.fetchone()
-            return dict(row) if row else None
+        try:
+            with self._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute(f"SELECT * FROM {table} WHERE {id_col} = ?", (str(item_id),))
+                row = cursor.fetchone()
+                return dict(row) if row else None
+        except Exception as e:
+            logger.error(f"Error retrieving {item_type} '{item_id}' from database: {e}")
+            return None
 
     def get_related_items(self, item_type: str, item_id: Any) -> List[Tuple[str, str, str]]:
         """
