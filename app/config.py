@@ -36,9 +36,9 @@ class Settings(BaseSettings):
     embedding_provider: str = Field(default="local", validation_alias="EMBEDDING_PROVIDER")
     embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", validation_alias="EMBEDDING_MODEL")
     llm_provider: str = Field(default="openrouter", validation_alias="LLM_PROVIDER")
-    model: str = Field(default="meta-llama/llama-3.2-3b-instruct:free", validation_alias="MODEL")
+    model: str = Field(default="tencent/hy3:free", validation_alias="MODEL")
     openrouter_api_key: Optional[str] = Field(default=None, validation_alias="OPENROUTER_API_KEY")
-    openrouter_model: str = Field(default="meta-llama/llama-3.2-3b-instruct:free", validation_alias="OPENROUTER_MODEL")
+    openrouter_model: str = Field(default="tencent/hy3:free", validation_alias="OPENROUTER_MODEL")
 
     def __init__(self, **values):
         super().__init__(**values)

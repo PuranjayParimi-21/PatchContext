@@ -37,7 +37,7 @@ def test_openrouter_llm_initialization(
     
     settings.llm_provider = "openrouter"
     settings.openrouter_api_key = "sk-or-v1-fake-key"
-    settings.openrouter_model = "meta-llama/llama-3.2-3b-instruct:free"
+    settings.openrouter_model = "tencent/hy3:free"
     
     try:
         mock_db = MagicMock()
@@ -46,7 +46,7 @@ def test_openrouter_llm_initialization(
         rag = PatchContextRAG(mock_db)
         
         mock_chat_openai.assert_called_once_with(
-            model="meta-llama/llama-3.2-3b-instruct:free",
+            model="tencent/hy3:free",
             temperature=0.3,
             max_tokens=512,
             openai_api_key="sk-or-v1-fake-key",
