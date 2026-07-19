@@ -272,6 +272,12 @@ def get_rag():
 db = get_db()
 rag_pipeline = get_rag()
 
+# Force load guard stubs on cached instance to ensure NLI runs at runtime
+if rag_pipeline and hasattr(rag_pipeline, "guard"):
+    rag_pipeline.guard.tokenizer = "lightweight-stub"
+    rag_pipeline.guard.nli_model = "lightweight-stub"
+    rag_pipeline.guard.device = "cpu"
+
 # Sidebar: Configurations and statistics
 st.sidebar.markdown("<h2 style='text-align: center; color: #FF4B4B;'>PatchContext Admin</h2>", unsafe_allow_html=True)
 
