@@ -37,7 +37,7 @@ def test_openrouter_llm_initialization(
     
     settings.llm_provider = "openrouter"
     settings.openrouter_api_key = "sk-or-v1-fake-key"
-    settings.openrouter_model = "google/gemini-2.5-flash"
+    settings.openrouter_model = "mistralai/mistral-7b-instruct:free"
     
     try:
         mock_db = MagicMock()
@@ -46,7 +46,7 @@ def test_openrouter_llm_initialization(
         rag = PatchContextRAG(mock_db)
         
         mock_chat_openai.assert_called_once_with(
-            model="google/gemini-2.5-flash",
+            model="mistralai/mistral-7b-instruct:free",
             temperature=0.3,
             max_tokens=512,
             openai_api_key="sk-or-v1-fake-key",

@@ -150,7 +150,7 @@ class PatchContextRAG:
                     self.llm.model_name = fallback_model
                     try:
                         # Brief pause to avoid rate limiting
-                        time.sleep(1.5)
+                        time.sleep(0.5)
                         response = self.llm.invoke(prompt_val.to_messages())
                         raw_answer = response.content
                         # Also treat empty fallback response as failure

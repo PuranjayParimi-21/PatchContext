@@ -14,16 +14,13 @@ class DatabaseManager:
         self._init_db()
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Returns a robust SQLite connection with WAL mode and timeout to prevent DatabaseError on Streamlit Cloud."""
+        """Returns a robust SQLite connection with timeout to prevent DatabaseError on Streamlit Cloud."""
         conn = sqlite3.connect(
             self.db_path,
             timeout=30,           # Wait up to 30s for locks to clear before raising an error
             check_same_thread=False  # Allow cross-thread use inside cache_resource
         )
         conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")    # Allow concurrent reads during writes
-        conn.execute("PRAGMA synchronous=NORMAL")  # Balance safety and performance
-        conn.execute("PRAGMA busy_timeout=10000")  # SQLite busy timeout (10s)
         return conn
 
     def _init_db(self) -> None:
@@ -300,17 +297,11 @@ class DatabaseManager:
             return row['value'] if row else default
 
     def get_stats(self) -> Dict[str, int]:
-        """Returns counts of commits, PRs, issues, and relationships. Auto-inits tables if missing."""
-        # Always ensure tables exist before querying (guards against fresh db on Streamlit Cloud)
-        self._init_db()
-        try:
-            with self._get_connection() as conn:
-                cursor = conn.cursor()
-                stats = {}
-                for table in ("commits", "prs", "issues", "relationships"):
-                    cursor.execute(f"SELECT COUNT(*) FROM {table}")
-                    stats[table] = cursor.fetchone()[0]
-            return stats
-        except Exception as e:
-            logger.error(f"Error getting stats: {e}")
-            return {"commits": 0, "prs": 0, "issues": 0, "relationships": 0}
+        """Returns counts of commits, PRs, issues, and relationships."""
+        stats = {}
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            for table in ("commits", "prs", "issues", "relationships"):
+                cursor.execute(f"SELECT COUNT(*) FROM {table}")
+                stats[table] = cursor.fetchone()[0]
+        return stats
