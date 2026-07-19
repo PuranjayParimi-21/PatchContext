@@ -298,14 +298,97 @@ if rag_pipeline and hasattr(rag_pipeline, "guard"):
     rag_pipeline.guard.nli_model = "lightweight-stub"
     rag_pipeline.guard.device = "cpu"
 
-# Sidebar: Configurations only
+# Sidebar: PatchContext Admin
+st.sidebar.markdown("<h2 style='text-align: center; color: #FF4B4B;'>PatchContext Admin</h2>", unsafe_allow_html=True)
+
+# 1. Configuration Check
 st.sidebar.subheader("Configuration Check")
 llm_provider = settings.llm_provider.lower()
+emb_provider = settings.embedding_provider.lower()
 
 st.sidebar.text(f"LLM Provider: {settings.llm_provider}")
 st.sidebar.text(f"Model: {settings.openrouter_model if llm_provider == 'openrouter' else settings.model}")
 st.sidebar.text(f"Embedding Provider: {settings.embedding_provider}")
 st.sidebar.text(f"Embedding Model: {settings.embedding_model}")
+
+if llm_provider == "openrouter":
+    llm_ok = bool(settings.openrouter_api_key)
+    llm_label = "OpenRouter Key"
+else:
+    llm_ok = bool(settings.openai_api_key)
+    llm_label = "OpenAI Key"
+
+github_ok = bool(settings.github_token)
+
+col1, col2 = st.sidebar.columns(2)
+with col1:
+    if llm_ok:
+        st.success(f"{llm_label} OK")
+    else:
+        st.error(f"{llm_label} Missing")
+with col2:
+    if github_ok:
+        st.success("GitHub Token OK")
+    else:
+        st.warning("GitHub Token Missing")
+
+if emb_provider in ["local", "huggingface"]:
+    st.sidebar.success("Local Embeddings OK")
+else:
+    st.sidebar.warning("Using OpenAI/OpenRouter Embeddings")
+
+# 2. Repository Statistics
+st.sidebar.subheader("Repository Statistics")
+try:
+    stats = db.get_stats()
+    st.sidebar.info(f"📁 Commits: {stats['commits']}")
+    st.sidebar.info(f"🔄 Pull Requests: {stats['prs']}")
+    st.sidebar.info(f"🐛 Issues: {stats['issues']}")
+    st.sidebar.info(f"🔗 Relationships: {stats['relationships']}")
+except Exception as e:
+    st.sidebar.error(f"Error loading stats: {e}")
+
+# 3. Data Sync Control
+st.sidebar.subheader("Data Sync Control")
+limit_commits = st.sidebar.number_input("Commit sync limit", min_value=10, max_value=2000, value=200, step=50)
+limit_api = st.sidebar.number_input("PR/Issue sync limit (per run)", min_value=10, max_value=500, value=50, step=10)
+
+if st.sidebar.button("Run GitHub Sync (Incremental)", use_container_width=True):
+    with st.spinner("Extracting commits, PRs, and issues..."):
+        try:
+            loader = GitHubLoader(db)
+            st.info("Step 1: Extracting commits locally...")
+            loader.extract_commits(max_count=limit_commits)
+            
+            st.info("Step 2: Syncing Pull Requests via GitHub API...")
+            loader.extract_prs_graphql(limit=limit_api)
+            
+            st.info("Step 3: Syncing Issues via GitHub API...")
+            loader.extract_issues_graphql(limit=limit_api)
+            
+            st.info("Step 4: Exporting cache JSON files...")
+            loader.export_data_to_json()
+            
+            st.success("GitHub synchronization finished successfully!")
+            time.sleep(1)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Sync failed: {e}")
+
+if st.sidebar.button("Rebuild Vector Index", use_container_width=True):
+    with st.spinner("Chunking and generating embeddings..."):
+        try:
+            embeddings = get_embeddings()
+            parser = DocumentParser()
+            st.info("Indexing new database items in FAISS...")
+            vectorstore = build_or_update_index(db, parser, embeddings)
+            if vectorstore:
+                st.success("Vector index successfully updated!")
+                rag_pipeline.refresh_retriever()
+            else:
+                st.warning("No new database items to index.")
+        except Exception as e:
+            st.error(f"Indexing failed: {e}")
 
 
 def get_node_details(db, item_type: str, item_id: str):
