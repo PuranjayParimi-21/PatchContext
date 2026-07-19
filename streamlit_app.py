@@ -3,7 +3,7 @@ import time
 import os
 import logging
 import json
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Tuple
 import streamlit.components.v1 as components
 from app.config import settings
 from app.database import DatabaseManager
