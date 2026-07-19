@@ -44,8 +44,7 @@ class PatchContextRAG:
                 temperature=0.3,
                 max_tokens=512,
                 openai_api_key=settings.openrouter_api_key,
-                openai_api_base="https://openrouter.ai/api/v1",
-                model_kwargs={"stop": None}  # Prevent accidental stop-token truncation on free models
+                openai_api_base="https://openrouter.ai/api/v1"
             )
         else:
             model_name = settings.model if settings.model else "gpt-4o-mini"
@@ -127,9 +126,10 @@ class PatchContextRAG:
             prompt_val = QA_PROMPT.format_prompt(context=context_str, question=query)
             response = self.llm.invoke(prompt_val.to_messages())
             raw_answer = response.content
-            # Treat empty model response as an error
-            if not raw_answer or not raw_answer.strip():
-                raise ValueError("Model returned an empty response.")
+            # Treat empty OR error-string responses as failures requiring retry
+            _OPENROUTER_ERRORS = ("model output error", "model output must contain", "tool calls")
+            if not raw_answer or not raw_answer.strip() or any(e in raw_answer.lower() for e in _OPENROUTER_ERRORS):
+                raise ValueError(f"Model returned invalid output: {raw_answer[:120]}")
         except Exception as e:
             logger.error(f"Error generating answer with {self.llm.model_name}: {e}")
             llm_error = True
@@ -153,9 +153,10 @@ class PatchContextRAG:
                         time.sleep(0.5)
                         response = self.llm.invoke(prompt_val.to_messages())
                         raw_answer = response.content
-                        # Also treat empty fallback response as failure
-                        if not raw_answer or not raw_answer.strip():
-                            raise ValueError(f"Fallback model {fallback_model} returned an empty response.")
+                        # Also treat empty or error-string fallback response as failure
+                        _OPENROUTER_ERRORS = ("model output error", "model output must contain", "tool calls")
+                        if not raw_answer or not raw_answer.strip() or any(e in raw_answer.lower() for e in _OPENROUTER_ERRORS):
+                            raise ValueError(f"Fallback model {fallback_model} returned invalid output: {raw_answer[:120]}")
                         success = True
                         llm_error = False
                         logger.info(f"Successfully generated answer using fallback model: {fallback_model}")
