@@ -8,6 +8,26 @@ from langchain_core.documents import Document
 
 logger = logging.getLogger("PatchContext.Verifier")
 
+def clean_text_for_nli(text: str) -> str:
+    """Cleans text by removing markdown bold/italic tags, backticks, and citations 
+    to create clean natural language for BART NLI classifier.
+    """
+    if not text:
+        return ""
+    # Remove markdown bold/italic tags
+    text = re.sub(r'\*\*([^*]+)\*\*|__([^_]+)__', r'\1\2', text)
+    text = re.sub(r'\*([^*]+)\*|_([^_]+)_', r'\1\2', text)
+    # Remove inline code backticks
+    text = text.replace('`', '')
+    # Remove list bullets at the beginning of lines
+    text = re.sub(r'^\s*[-*+]\s+', '', text)
+    text = re.sub(r'^\s*\d+\.\s+', '', text)
+    # Remove bracketed citations like [Issue #123], [PR 456], [Commit abc]
+    text = re.sub(r'\[(?:Commit|PR|Issue)\s*(?:#|:)?\s*[a-f0-9]+\]', '', text, flags=re.IGNORECASE)
+    # Normalize spaces
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
 class HallucinationGuard:
     """Verifies citation existence in database and retrieved context, 
     and checks factual entailment using a BART NLI model.
@@ -190,90 +210,121 @@ class HallucinationGuard:
         try:
             import torch
             
-            # Split answer into sentences
-            raw_sentences = re.split(r'(?<=[.!?])\s+', answer)
-            sentences = [s.strip() for s in raw_sentences if s.strip()]
-            
-            valid_sentences = []
+            valid_lines = []
             scores = []
             threshold = settings.nli_entailment_threshold
             
-            for sentence in sentences:
-                # Check if this sentence contains any citations
-                parsed = self.parse_citations(sentence)
-                has_citations = any(parsed[category] for category in parsed)
-                
-                # If a sentence does not carry any citations, keep it as is (no NLI check needed)
-                if not has_citations:
-                    valid_sentences.append(sentence)
+            for line in answer.splitlines():
+                stripped_line = line.strip()
+                if not stripped_line:
+                    valid_lines.append("")  # Keep empty lines for spacing
                     continue
                     
-                # Identify supporting context for the citations in this sentence
-                supporting_texts = []
-                for doc in retrieved_docs:
-                    meta = doc.metadata
-                    dtype = str(meta.get("type", "")).lower()
-                    did = str(meta.get("id", "")).lower()
+                # Split the line into sentences to evaluate claims individually
+                line_sentences = re.split(r'(?<=[.!?])\s+', stripped_line)
+                valid_line_sentences = []
+                
+                for sentence in line_sentences:
+                    sentence = sentence.strip()
+                    if not sentence:
+                        continue
+                        
+                    # Check if this sentence contains any citations
+                    parsed = self.parse_citations(sentence)
+                    has_citations = any(parsed[category] for category in parsed)
                     
-                    if dtype == "commit" and parsed["commits"]:
-                        for sha in parsed["commits"]:
-                            if sha.startswith(did) or did.startswith(sha):
+                    # If a sentence does not carry any citations, keep it
+                    if not has_citations:
+                        valid_line_sentences.append(sentence)
+                        continue
+                        
+                    # Identify supporting context
+                    supporting_texts = []
+                    for doc in retrieved_docs:
+                        meta = doc.metadata
+                        dtype = str(meta.get("type", "")).lower()
+                        did = str(meta.get("id", "")).lower()
+                        
+                        if dtype == "commit" and parsed["commits"]:
+                            for sha in parsed["commits"]:
+                                if sha.startswith(did) or did.startswith(sha):
+                                    supporting_texts.append(doc.page_content)
+                                    break
+                        elif dtype == "pr" and parsed["prs"]:
+                            number = str(meta.get("number", ""))
+                            if number in parsed["prs"]:
                                 supporting_texts.append(doc.page_content)
-                                break
-                    elif dtype == "pr" and parsed["prs"]:
-                        number = str(meta.get("number", ""))
-                        if number in parsed["prs"]:
-                            supporting_texts.append(doc.page_content)
-                    elif dtype == "issue" and parsed["issues"]:
-                        number = str(meta.get("number", ""))
-                        if number in parsed["issues"]:
-                            supporting_texts.append(doc.page_content)
-                            
-                premise = "\n\n".join(supporting_texts).strip()
-                
-                # If there is no supporting context (e.g. citations not found in retrieved docs),
-                # the claim is automatically unsupported.
-                if not premise:
-                    logger.info(f"NLI Guard: Removing sentence (no retrieved context matches citation): '{sentence}'")
+                        elif dtype == "issue" and parsed["issues"]:
+                            number = str(meta.get("number", ""))
+                            if number in parsed["issues"]:
+                                supporting_texts.append(doc.page_content)
+                                
+                    premise = "\n\n".join(supporting_texts).strip()
+                    
+                    if not premise:
+                        logger.info(f"NLI Guard: Removing sentence (no retrieved context matches citation): '{sentence}'")
+                        continue
+                        
+                    # Clean premise and hypothesis for NLI classifier
+                    clean_premise = clean_text_for_nli(premise)
+                    clean_hypothesis = clean_text_for_nli(sentence)
+                    
+                    # Tokenize clean premise and hypothesis pair
+                    inputs = self.tokenizer(
+                        clean_premise[:4000], 
+                        clean_hypothesis, 
+                        return_tensors="pt", 
+                        truncation=True, 
+                        max_length=1024
+                    ).to(self.device)
+                    
+                    with torch.no_grad():
+                        outputs = self.nli_model(**inputs)
+                        probs = torch.softmax(outputs.logits, dim=-1)[0]
+                        entailment_score = float(probs[2].item())
+                        
+                    scores.append(entailment_score)
+                    
+                    if entailment_score >= threshold:
+                        valid_line_sentences.append(sentence)
+                    else:
+                        logger.info(f"NLI Guard: Removing unsupported sentence: '{sentence}' (score: {entailment_score:.4f})")
+                        
+                if valid_line_sentences:
+                    # Reconstruct the line, preserving list bullet/number prefix if it was there
+                    bullet_prefix = ""
+                    match_bullet = re.match(r'^(\s*[-*+]\s+|\s*\d+\.\s+)', line)
+                    if match_bullet:
+                        bullet_prefix = match_bullet.group(1)
+                    
+                    line_content = " ".join(valid_line_sentences)
+                    if bullet_prefix and line_content.startswith(bullet_prefix.strip()):
+                        valid_lines.append(line_content)
+                    else:
+                        valid_lines.append(bullet_prefix + line_content)
+                        
+            # Remove consecutive empty lines to keep output readable
+            assembled_lines = []
+            for line in valid_lines:
+                if line == "" and assembled_lines and assembled_lines[-1] == "":
                     continue
-                    
-                # Limit premise length to prevent model token overflow
-                premise = premise[:4000]
+                assembled_lines.append(line)
                 
-                # Tokenize premise and hypothesis pair
-                inputs = self.tokenizer(
-                    premise, 
-                    sentence, 
-                    return_tensors="pt", 
-                    truncation=True, 
-                    max_length=1024
-                ).to(self.device)
-                
-                with torch.no_grad():
-                    outputs = self.nli_model(**inputs)
-                    probs = torch.softmax(outputs.logits, dim=-1)[0]
-                    # Label index 2 corresponds to ENTAILMENT
-                    entailment_score = float(probs[2].item())
-                    
-                scores.append(entailment_score)
-                
-                if entailment_score >= threshold:
-                    valid_sentences.append(sentence)
-                else:
-                    logger.info(f"NLI Guard: Removing unsupported sentence: '{sentence}' (score: {entailment_score:.4f})")
-                    
-            if not valid_sentences:
+            # If all sentences with citations are removed and no valid text remains:
+            content_exists = any(line.strip() and not re.match(r'^[-*+]\s*$', line.strip()) for line in assembled_lines)
+            
+            if not content_exists:
                 filtered_answer = "I couldn't find sufficient evidence."
                 final_score = 0.0
             else:
-                filtered_answer = " ".join(valid_sentences)
+                filtered_answer = "\n".join(assembled_lines).strip()
                 final_score = sum(scores) / len(scores) if scores else 1.0
                 
             logger.info(f"NLI Verification completed. Score: {final_score:.4f}")
             return filtered_answer, final_score, {"nli_eval_latency": time.perf_counter() - t_start}
             
         except Exception as e:
-            logger.error(f"Error running NLI validation: {e}. Bypassing NLI score.")
+            logger.error(f"Error running NLI validation: {e}. Bypassing NLI score.", exc_info=True)
             return answer, 1.0, {"nli_eval_latency": time.perf_counter() - t_start}
 
     def format_citations_as_markdown(self, text: str) -> str:

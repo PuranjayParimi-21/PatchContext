@@ -17,7 +17,17 @@ def load_vector_store(embeddings: Embeddings) -> Optional[FAISS]:
         logger.info(f"Loading existing FAISS vector store from {path}...")
         try:
             # allow_dangerous_deserialization is required for loading pickle-serialized FAISS files in LangChain
-            return FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
+            store = FAISS.load_local(path, embeddings, allow_dangerous_deserialization=True)
+            if store is not None:
+                expected_dim = len(embeddings.embed_query("test"))
+                actual_dim = store.index.d
+                if actual_dim != expected_dim:
+                    logger.warning(
+                        f"FAISS index dimension mismatch! Embedding model expects {expected_dim} dimensions, "
+                        f"but loaded index has {actual_dim} dimensions. Discarding stale index."
+                    )
+                    return None
+            return store
         except Exception as e:
             logger.error(f"Error loading FAISS store: {e}", exc_info=True)
             return None

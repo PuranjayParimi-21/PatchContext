@@ -14,9 +14,9 @@ from app.rag_pipeline import PatchContextRAG
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger("PatchContext.Evaluator")
 
-def run_evaluation(num_questions: int = 50) -> None:
+def run_evaluation(num_questions: int = 50, no_metrics: bool = False) -> None:
     """Runs RAGAs evaluation on a subset (or all) of the benchmark questions."""
-    logger.info(f"Starting RAGAs evaluation on top {num_questions} questions...")
+    logger.info(f"Starting RAGAs evaluation on top {num_questions} questions (no_metrics={no_metrics})...")
     
     # Configure environment variables for RAGAs internal ChatOpenAI evaluations
     if settings.llm_provider.lower() == "openrouter":
@@ -86,45 +86,45 @@ def run_evaluation(num_questions: int = 50) -> None:
         # Respect OpenAI rate limits between queries
         time.sleep(1.0)
         
-    # Define dataset features explicitly to ensure compatibility with Ragas
-    from datasets import Features, Sequence, Value
-    eval_features = Features({
-        "question": Value("string"),
-        "answer": Value("string"),
-        "contexts": Sequence(Value("string")),
-        "ground_truth": Value("string")
-    })
-    
     # Evaluate each question individually to avoid one failure crashing the entire RAGAs run
     eval_results_list = []
-    question_scores = []
+    question_scores = [None] * len(questions)
     
-    for i in range(len(questions)):
-        single_dict = {
-            "question": [questions[i]],
-            "answer": [answers[i]],
-            "contexts": [contexts[i]],
-            "ground_truth": [ground_truths[i]]
-        }
-        try:
-            single_dataset = Dataset.from_dict(single_dict, features=eval_features)
-            logger.info(f"[{i+1}/{len(questions)}] Running RAGAs metrics on question: '{questions[i]}'")
-            res_eval = evaluate(
-                dataset=single_dataset,
-                metrics=[
-                    faithfulness,
-                    answer_relevancy,
-                    context_recall,
-                    context_precision,
-                    answer_correctness
-                ]
-            )
-            eval_results_list.append(res_eval)
-            question_scores.append(res_eval)
-            logger.info(f"Successfully evaluated question {i+1} score: {res_eval}")
-        except Exception as e:
-            logger.error(f"Failed RAGAs evaluation on question {i+1} ('{questions[i]}'): {e}", exc_info=True)
-            question_scores.append(None)
+    if not no_metrics:
+        # Define dataset features explicitly to ensure compatibility with Ragas
+        from datasets import Features, Sequence, Value
+        eval_features = Features({
+            "question": Value("string"),
+            "answer": Value("string"),
+            "contexts": Sequence(Value("string")),
+            "ground_truth": Value("string")
+        })
+        
+        for i in range(len(questions)):
+            single_dict = {
+                "question": [questions[i]],
+                "answer": [answers[i]],
+                "contexts": [contexts[i]],
+                "ground_truth": [ground_truths[i]]
+            }
+            try:
+                single_dataset = Dataset.from_dict(single_dict, features=eval_features)
+                logger.info(f"[{i+1}/{len(questions)}] Running RAGAs metrics on question: '{questions[i]}'")
+                res_eval = evaluate(
+                    dataset=single_dataset,
+                    metrics=[
+                        faithfulness,
+                        answer_relevancy,
+                        context_recall,
+                        context_precision,
+                        answer_correctness
+                    ]
+                )
+                eval_results_list.append(res_eval)
+                question_scores[i] = res_eval
+                logger.info(f"Successfully evaluated question {i+1} score: {res_eval}")
+            except Exception as e:
+                logger.error(f"Failed RAGAs evaluation on question {i+1} ('{questions[i]}'): {e}", exc_info=True)
             
     completed_count = len(eval_results_list)
     mean_metrics = {
@@ -183,6 +183,11 @@ if __name__ == "__main__":
         default=50, 
         help="Number of questions to evaluate (default: 50, range: 1 to 50)."
     )
+    parser.add_argument(
+        "--no-metrics",
+        action="store_true",
+        help="Skip RAGAs metrics evaluation and only generate answers."
+    )
     args = parser.parse_args()
     
-    run_evaluation(args.limit)
+    run_evaluation(args.limit, args.no_metrics)

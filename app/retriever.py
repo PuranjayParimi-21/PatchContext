@@ -1,6 +1,8 @@
 import time
 import logging
-from typing import List, Dict, Any, Tuple
+import re
+import hashlib
+from typing import List, Dict, Any, Tuple, Optional
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores import FAISS
@@ -26,7 +28,7 @@ class HybridRetriever:
         if self.vectorstore:
             self.vector_retriever = self.vectorstore.as_retriever(
                 search_type="mmr",
-                search_kwargs={"k": 15, "fetch_k": 30, "lambda_mult": 0.7}
+                search_kwargs={"k": 25, "fetch_k": 60, "lambda_mult": 0.5}
             )
         else:
             self.vector_retriever = None
@@ -68,113 +70,189 @@ class HybridRetriever:
             # We chunk the documents using our parser's splitter so BM25 operates on the same chunks
             chunked_docs = self.parser.splitter.split_documents(docs)
             self.bm25_retriever = BM25Retriever.from_documents(chunked_docs)
-            # Configure BM25 retrieve count
-            self.bm25_retriever.k = 15
+            # Configure BM25 retrieve count (k = 25)
+            self.bm25_retriever.k = 25
             logger.info(f"BM25 index built with {len(chunked_docs)} chunks.")
         else:
             logger.warning("No indexed documents found in database. BM25 retriever initialized empty.")
             self.bm25_retriever = None
 
-    def retrieve(self, query: str, k_final: int = 5) -> Tuple[List[Document], Dict[str, float]]:
-        """
-        Executes the full hybrid retrieval, graph expansion, and re-ranking pipeline.
+    def _detect_identifier(self, query: str) -> Optional[Tuple[str, str]]:
+        """Detects if the query references a specific PR, Issue, or Commit SHA using regular expressions.
         Returns:
-            Tuple of:
-                - List of top-k re-ranked Documents
-                - Dictionary containing performance latency metrics (in seconds)
+            Tuple of (type, id) if detected, else None.
         """
-        metrics = {}
-        t_total_start = time.perf_counter()
+        # 1. Pull Request patterns (e.g. PR #145, Pull Request 145, PR145)
+        pr_match = re.search(r"(?i)\b(?:pull\s*request|pr)\b\s*#?(\d+)", query)
+        if pr_match:
+            pr_id = pr_match.group(1)
+            logger.info(f"Identifier detection: detected Pull Request #{pr_id} in query.")
+            return "pr", pr_id
+            
+        # 2. Issue patterns (e.g. Issue #458, Issue 458)
+        issue_match = re.search(r"(?i)\bissue\b\s*#?(\d+)", query)
+        if issue_match:
+            issue_id = issue_match.group(1)
+            logger.info(f"Identifier detection: detected Issue #{issue_id} in query.")
+            return "issue", issue_id
+            
+        # 3. Commit SHA patterns
+        # Look for "commit <sha>" prefix
+        commit_prefix_match = re.search(r"(?i)\bcommit\b\s+([0-9a-f]{7,40})\b", query)
+        if commit_prefix_match:
+            sha = commit_prefix_match.group(1).lower()
+            logger.info(f"Identifier detection: detected Commit prefix with SHA '{sha}' in query.")
+            return "commit", sha
+
+        # Look for raw commit SHA hashes (7-40 hex characters)
+        hex_matches = re.findall(r"\b([0-9a-f]{7,40})\b", query, re.IGNORECASE)
+        for sha in hex_matches:
+            sha_lower = sha.lower()
+            # If purely numeric and short, ignore to avoid conflict with issue/PR numbers
+            if sha_lower.isdigit() and len(sha_lower) < 10:
+                continue
+            # Validate if it exists as a commit in the database (supports prefix/abbreviation checks)
+            if self._exists_commit_sha(sha_lower):
+                logger.info(f"Identifier detection: detected valid Commit SHA '{sha_lower}' in query.")
+                return "commit", sha_lower
+                
+        return None
+
+    def _exists_commit_sha(self, sha: str) -> bool:
+        """Helper to check if a full or abbreviated SHA exists in the SQLite database."""
+        if len(sha) == 40:
+            return self.db.exists_in_db("commit", sha)
+        try:
+            with self.db._get_connection() as conn:
+                cursor = conn.cursor()
+                cursor.execute("SELECT 1 FROM commits WHERE sha LIKE ? LIMIT 1", (f"{sha.lower()}%",))
+                return cursor.fetchone() is not None
+        except Exception as e:
+            logger.error(f"Error checking exists for SHA prefix '{sha}': {e}")
+            return False
+
+    def _exact_lookup(self, item_type: str, item_id: str) -> List[Document]:
+        """Performs a direct lookup in SQLite for the specified item type and id."""
+        logger.info(f"SQLite lookup: fetching {item_type} '{item_id}'...")
+        row = None
         
-        # 1. Vector Search (MMR)
-        t_start = time.perf_counter()
-        vector_docs = []
-        if self.vector_retriever:
+        # Support abbreviated commit SHA lookups
+        if item_type == "commit" and len(item_id) < 40:
             try:
-                # We retrieve 15 documents via MMR search first to pass to the reranker
-                vector_docs = self.vector_retriever.invoke(query)
+                with self.db._get_connection() as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT * FROM commits WHERE sha LIKE ? LIMIT 1", (f"{item_id.lower()}%",))
+                    db_row = cursor.fetchone()
+                    if db_row:
+                        row = dict(db_row)
             except Exception as e:
-                logger.error(f"Vector search failed: {e}")
-        metrics["vector_latency"] = time.perf_counter() - t_start
-        
-        # 2. BM25 Search
-        t_start = time.perf_counter()
-        bm25_docs = []
-        if self.bm25_retriever:
-            try:
-                bm25_docs = self.bm25_retriever.invoke(query)
-            except Exception as e:
-                logger.error(f"BM25 search failed: {e}")
-        metrics["bm25_latency"] = time.perf_counter() - t_start
-        
-        # 3. Merge & Deduplicate candidates
+                logger.error(f"Error retrieving commit by SHA prefix '{item_id}': {e}")
+        else:
+            row = self.db.get_item(item_type, item_id)
+            
+        if not row:
+            logger.warning(f"SQLite lookup: no database record found for {item_type} '{item_id}'.")
+            return []
+            
+        doc = None
+        if item_type == "commit":
+            doc = self.parser.parse_commit(row)
+        elif item_type == "pr":
+            doc = self.parser.parse_pr(row)
+        elif item_type == "issue":
+            doc = self.parser.parse_issue(row)
+            
+        if doc:
+            chunks = self.parser.splitter.split_documents([doc])
+            logger.info(f"SQLite lookup: successfully retrieved {item_type} '{item_id}'. Split into {len(chunks)} chunks.")
+            return chunks
+            
+        return []
+
+    def _vector_search(self, query: str) -> List[Document]:
+        """Performs FAISS semantic search using Max Marginal Relevance (MMR)."""
+        if not self.vector_retriever:
+            logger.warning("Vector search requested but vector store is not initialized.")
+            return []
+            
+        logger.info("FAISS vector search: executing MMR search...")
+        try:
+            docs = self.vector_retriever.invoke(query)
+            logger.info(f"FAISS count: retrieved {len(docs)} documents.")
+            return docs
+        except Exception as e:
+            logger.error(f"FAISS search failed: {e}")
+            return []
+
+    def _bm25_search(self, query: str) -> List[Document]:
+        """Performs lexical keyword search using BM25."""
+        if not self.bm25_retriever:
+            logger.warning("BM25 search requested but retriever is not initialized.")
+            return []
+            
+        logger.info("BM25 search: executing query...")
+        try:
+            docs = self.bm25_retriever.invoke(query)
+            logger.info(f"BM25 count: retrieved {len(docs)} documents.")
+            return docs
+        except Exception as e:
+            logger.error(f"BM25 search failed: {e}")
+            return []
+
+    def _merge_candidates(self, vector_docs: List[Document], bm25_docs: List[Document]) -> List[Document]:
+        """Merges vector search and BM25 candidates, deduplicating using MD5 content hash."""
         candidates_map: Dict[str, Document] = {}
         
-        def add_doc_to_candidates(doc: Document):
-            # Form unique key based on type + ID + content chunk hash or content prefix
+        def add_doc(doc: Document):
             m = doc.metadata
-            key = f"{m.get('type')}_{m.get('id')}_{hash(doc.page_content[:150])}"
+            doc_type = m.get("type", "unknown")
+            doc_id = str(m.get("id", ""))
+            
+            # Compute stable process-independent content hash
+            content_hash = hashlib.md5(doc.page_content.encode("utf-8")).hexdigest()
+            key = f"{doc_type}_{doc_id}_{content_hash}"
+            
             if key not in candidates_map:
                 candidates_map[key] = doc
                 
         for doc in vector_docs:
-            add_doc_to_candidates(doc)
+            add_doc(doc)
         for doc in bm25_docs:
-            add_doc_to_candidates(doc)
+            add_doc(doc)
             
-        initial_candidates = list(candidates_map.values())
-        logger.debug(f"Retrieved {len(initial_candidates)} candidate chunks from hybrid search.")
-        
-        # 4. Graph-Aware Context Expansion
-        t_start = time.perf_counter()
-        expanded_docs = self._expand_context_graph(initial_candidates)
-        metrics["graph_expansion_latency"] = time.perf_counter() - t_start
-        
-        # Merge initial and graph-expanded docs
-        for doc in expanded_docs:
-            add_doc_to_candidates(doc)
-            
-        all_candidates = list(candidates_map.values())
-        logger.debug(f"Total candidates after graph expansion: {len(all_candidates)}")
-        
-        # 5. Cross-Encoder Re-ranking
-        t_start = time.perf_counter()
-        final_docs = []
-        if all_candidates:
-            # Pair query with each candidate document content
-            pairs = [[query, doc.page_content] for doc in all_candidates]
-            scores = self.reranker.predict(pairs)
-            
-            # Sort by score descending
-            scored_candidates = sorted(
-                zip(all_candidates, scores), 
-                key=lambda x: x[1], 
-                reverse=True
-            )
-            
-            # Save cross-encoder score in document metadata
-            for doc, score in scored_candidates:
-                doc.metadata["rerank_score"] = float(score)
-                
-            # Take top k_final
-            final_docs = [doc for doc, _ in scored_candidates[:k_final]]
-        metrics["rerank_latency"] = time.perf_counter() - t_start
-        
-        metrics["total_retrieval_latency"] = time.perf_counter() - t_total_start
-        
-        logger.info(
-            f"Hybrid retrieval finished: {len(final_docs)} chunks returned. "
-            f"Total retrieval latency: {metrics['total_retrieval_latency']:.4f}s"
-        )
-        return final_docs, metrics
+        merged = list(candidates_map.values())
+        logger.info(f"Merged count: combined into {len(merged)} unique document chunks.")
+        return merged
 
-    def _expand_context_graph(self, docs: List[Document], max_expansion: int = 5) -> List[Document]:
-        """Queries the SQLite relationships table to fetch related nodes for the candidate documents."""
+    def _expand_context_graph(self, docs: List[Document], max_expansion: int = 10) -> List[Document]:
+        """Queries the SQLite relationships table to fetch related nodes for the candidate documents.
+        Enforces a strict expansion limit of up to `max_expansion` related nodes.
+        """
+        if not docs:
+            return []
+            
         expanded_documents = []
-        added_keys = set()
+        
+        # Track items that are already in the candidates list to avoid expanding or re-fetching them
+        existing_items = set()
+        for doc in docs:
+            m = doc.metadata
+            item_type = m.get("type")
+            item_id = m.get("id")
+            if item_type and item_id:
+                # Normalize types to singular
+                t = item_type.lower()
+                if t.endswith("s"):
+                    t = t[:-1]
+                existing_items.add((t, str(item_id)))
+                
+        expanded_keys = set()
+        expansion_count = 0
+        
+        logger.info(f"Graph expansion: checking relationships for {len(docs)} candidates...")
         
         for doc in docs:
-            if len(expanded_documents) >= max_expansion:
+            if expansion_count >= max_expansion:
                 break
                 
             m = doc.metadata
@@ -187,34 +265,160 @@ class HybridRetriever:
             # Get related items from database relationships
             related = self.db.get_related_items(item_type, item_id)
             for rel_type, rel_id, link in related:
-                if len(expanded_documents) >= max_expansion:
+                if expansion_count >= max_expansion:
                     break
                     
-                key = f"{rel_type}_{rel_id}"
-                if key in added_keys:
+                # Normalize types to singular
+                r_type = rel_type.lower()
+                if r_type.endswith("s"):
+                    r_type = r_type[:-1]
+                r_id = str(rel_id)
+                
+                # Skip if already in candidates or already expanded
+                if (r_type, r_id) in existing_items or (r_type, r_id) in expanded_keys:
                     continue
-                added_keys.add(key)
+                    
+                expanded_keys.add((r_type, r_id))
                 
                 # Retrieve record from SQLite
-                row = self.db.get_item(rel_type, rel_id)
+                row = self.db.get_item(r_type, r_id)
                 if row:
-                    logger.debug(f"Graph expansion: linked {item_type} #{item_id} -> {rel_type} #{rel_id} ({link})")
-                    # Parse row to Document
+                    logger.info(f"Graph expansion: linked {item_type} #{item_id} -> {r_type} #{r_id} ({link})")
                     related_doc = None
-                    if rel_type == "commit" or rel_type == "commits":
+                    if r_type == "commit":
                         related_doc = self.parser.parse_commit(row)
-                    elif rel_type == "pr" or rel_type == "prs":
+                    elif r_type == "pr":
                         related_doc = self.parser.parse_pr(row)
-                    elif rel_type == "issue" or rel_type == "issues":
+                    elif r_type == "issue":
                         related_doc = self.parser.parse_issue(row)
                         
                     if related_doc:
-                        # Append the related document chunked or as a whole.
-                        # Since we want it as context, let's chunk it so it fits nicely
+                        expansion_count += 1
+                        # Chunk the related document
                         chunks = self.parser.splitter.split_documents([related_doc])
                         for chunk in chunks:
                             chunk.metadata["graph_expanded"] = True
                             chunk.metadata["expanded_from"] = f"{item_type}:{item_id}"
                             expanded_documents.append(chunk)
                             
+        logger.info(f"Expanded count: added {len(expanded_documents)} chunks from {expansion_count} related nodes.")
         return expanded_documents
+
+    def _rerank(self, query: str, candidates: List[Document], k_final: int = 10) -> List[Document]:
+        """Reranks candidates using the Cross-Encoder model and selects the top k_final items."""
+        if not candidates:
+            logger.info("Reranking: no candidate documents to rerank.")
+            return []
+            
+        logger.info(f"Reranking: predicting relevance scores for {len(candidates)} candidates...")
+        pairs = [[query, doc.page_content] for doc in candidates]
+        scores = self.reranker.predict(pairs)
+        
+        # Pair documents with scores and sort descending
+        scored_candidates = sorted(
+            zip(candidates, scores),
+            key=lambda x: x[1],
+            reverse=True
+        )
+        
+        logger.info("CrossEncoder scores:")
+        for doc, score in scored_candidates:
+            doc.metadata["rerank_score"] = float(score)
+            logger.info(f"  - Score {score:.4f} | {doc.metadata.get('type')} #{doc.metadata.get('id')} | Snippet: {doc.page_content[:60].replace('\n', ' ')}...")
+            
+        # Select top k_final
+        final_docs = [doc for doc, _ in scored_candidates[:k_final]]
+        
+        logger.info(f"Final selected documents (top {len(final_docs)}):")
+        for i, doc in enumerate(final_docs):
+            logger.info(f"  [{i+1}] {doc.metadata.get('type')} #{doc.metadata.get('id')} (score: {doc.metadata.get('rerank_score'):.4f})")
+            
+        return final_docs
+
+    def retrieve(self, query: str, k_final: int = 10) -> Tuple[List[Document], Dict[str, float]]:
+        """
+        Executes the full retrieval, routing, graph expansion, and re-ranking pipeline.
+        Returns:
+            Tuple of:
+                - List of top-k re-ranked Documents
+                - Dictionary containing performance latency metrics (in seconds)
+        """
+        metrics = {}
+        t_total_start = time.perf_counter()
+        
+        # 1. Query routing / exact identifier detection
+        t_start = time.perf_counter()
+        identifier = self._detect_identifier(query)
+        metrics["identifier_detect_latency"] = time.perf_counter() - t_start
+        
+        if identifier:
+            item_type, item_id = identifier
+            logger.info(f"Query routing: matched exact entity identifier '{item_type}:{item_id}'. Bypassing semantic search.")
+            
+            # Fast-track path: SQLite lookup -> Relationship Expansion -> CrossEncoder
+            t_start = time.perf_counter()
+            exact_docs = self._exact_lookup(item_type, item_id)
+            metrics["exact_lookup_latency"] = time.perf_counter() - t_start
+            
+            # Graph relationship expansion (up to 10 nodes)
+            t_start = time.perf_counter()
+            expanded_docs = self._expand_context_graph(exact_docs, max_expansion=10)
+            metrics["graph_expansion_latency"] = time.perf_counter() - t_start
+            
+            # Merge and deduplicate candidates
+            candidates = self._merge_candidates(exact_docs, expanded_docs)
+            
+            # Rerank
+            t_start = time.perf_counter()
+            final_docs = self._rerank(query, candidates, k_final=k_final)
+            metrics["rerank_latency"] = time.perf_counter() - t_start
+            
+            # Zero out unused search latencies to maintain downstream compatibility
+            metrics["vector_latency"] = 0.0
+            metrics["bm25_latency"] = 0.0
+            metrics["total_retrieval_latency"] = time.perf_counter() - t_total_start
+            
+            logger.info(
+                f"Exact lookup finished: returned {len(final_docs)} chunks. "
+                f"Total latency: {metrics['total_retrieval_latency']:.4f}s"
+            )
+            return final_docs, metrics
+            
+        else:
+            logger.info("Query routing: no exact identifier matched. Executing hybrid retrieval pipeline.")
+            
+            # Hybrid search path: FAISS (MMR) + BM25 -> Merge -> Graph Expansion -> CrossEncoder
+            
+            # Vector search (MMR)
+            t_start = time.perf_counter()
+            vector_docs = self._vector_search(query)
+            metrics["vector_latency"] = time.perf_counter() - t_start
+            
+            # BM25 Search
+            t_start = time.perf_counter()
+            bm25_docs = self._bm25_search(query)
+            metrics["bm25_latency"] = time.perf_counter() - t_start
+            
+            # Merge & Deduplicate initial search results
+            merged_search_docs = self._merge_candidates(vector_docs, bm25_docs)
+            
+            # Graph relationship expansion (up to 10 nodes)
+            t_start = time.perf_counter()
+            expanded_docs = self._expand_context_graph(merged_search_docs, max_expansion=10)
+            metrics["graph_expansion_latency"] = time.perf_counter() - t_start
+            
+            # Merge expanded nodes back into primary candidate pool
+            all_candidates = self._merge_candidates(merged_search_docs, expanded_docs)
+            
+            # Cross-Encoder Reranking
+            t_start = time.perf_counter()
+            final_docs = self._rerank(query, all_candidates, k_final=k_final)
+            metrics["rerank_latency"] = time.perf_counter() - t_start
+            
+            metrics["total_retrieval_latency"] = time.perf_counter() - t_total_start
+            
+            logger.info(
+                f"Hybrid retrieval finished: returned {len(final_docs)} chunks. "
+                f"Total latency: {metrics['total_retrieval_latency']:.4f}s"
+            )
+            return final_docs, metrics

@@ -123,8 +123,32 @@ class PatchContextRAG:
             response = self.llm.invoke(prompt_val.to_messages())
             raw_answer = response.content
         except Exception as e:
-            logger.error(f"Error generating answer: {e}", exc_info=True)
-            raw_answer = f"An error occurred while calling the language model ({provider})."
+            logger.error(f"Error generating answer with {self.llm.model_name}: {e}")
+            if provider == "openrouter":
+                fallbacks = [
+                    "tencent/hy3:free",
+                    "cohere/north-mini-code:free",
+                    "meta-llama/llama-3.2-3b-instruct:free",
+                    "meta-llama/llama-3.3-70b-instruct:free"
+                ]
+                success = False
+                for fallback_model in fallbacks:
+                    if fallback_model == self.llm.model_name:
+                        continue
+                    logger.info(f"Retrying with fallback model: {fallback_model}...")
+                    self.llm.model_name = fallback_model
+                    try:
+                        response = self.llm.invoke(prompt_val.to_messages())
+                        raw_answer = response.content
+                        success = True
+                        logger.info(f"Successfully generated answer using fallback model: {fallback_model}")
+                        break
+                    except Exception as fallback_err:
+                        logger.error(f"Fallback model {fallback_model} also failed: {fallback_err}")
+                if not success:
+                    raw_answer = f"An error occurred while calling the language model ({provider})."
+            else:
+                raw_answer = f"An error occurred while calling the language model ({provider})."
         latencies["llm_latency"] = time.perf_counter() - t_llm_start
         
         # Automatically attach missing citations from retrieved docs to raw_answer

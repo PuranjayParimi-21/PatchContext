@@ -3775,7 +3775,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,10 @@ hide:\n \n ## Latest Changes\n \n+### Docs\n+\n+* 📝 Restructure FastAPI People and related pages. PR [#16015](https://github.com/fastapi/fastapi/pull/16015) by [@tiangolo](https://github.com/tiangolo).\n+\n ## 0.139.2 (2026-07-16)\n \n ### Fixes\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "e735449bae685102d448d2a443a88e1d3304abbd",
@@ -3790,7 +3790,7 @@
       "docs/en/mkdocs.yml"
     ],
     "diff": "\nFile: docs/en/data/members.yml\n@@ -2,21 +2,21 @@ members:\n - login: tiangolo\n   avatar_url: https://avatars.githubusercontent.com/u/1326112\n   url: https://github.com/tiangolo\n-- login: Kludex\n-  avatar_url: https://avatars.githubusercontent.com/u/7353520\n-  url: https://github.com/Kludex\n-- login: alejsdev\n-  avatar_url: https://avatars.githubusercontent.com/u/90076947\n-  url: https://github.com/alejsdev\n-- login: svlandeg\n-  avatar_url: https://avatars.githubusercontent.com/u/8796347\n-  url: https://github.com/svlandeg\n - login: YuriiMotov\n   avatar_url: https://avatars.githubusercontent.com/u/109919500\n   url: https://github.com/YuriiMotov\n+- login: svlandeg\n+  avatar_url: https://avatars.githubusercontent.com/u/8796347\n+  url: https://github.com/svlandeg\n+- login: alejsdev\n+  avatar_url: https://avatars.githubusercontent.com/u/90076947\n+  url: https://github.com/alejsdev\n - login: patrick91\n   avatar_url: https://avatars.githubusercontent.com/u/667029\n   url: https://github.com/patrick91\n - login: luzzodev\n   avatar_url: https://avatars.githubusercontent.com/u/27291415\n   url: https://github.com/luzzodev\n+- login: Kludex\n+  avatar_url: https://avatars.githubusercontent.com/u/7353520\n+  url: https://github.com/Kludex\n\nFile: docs/en/docs/help-fastapi.md\n@@ -45,20 +45,6 @@ You can follow [me (Sebastián Ramírez / `tiangolo`)](https://tiangolo.com), th\n * [@tiangolo.com on **Bluesky**](https://bsky.app/profile/tiangolo.com)\n * [@tiangolo on **LinkedIn**](https://www.linkedin.com/in/tiangolo/).\n \n-## Help others with questions in GitHub { #help-others-with-questions-in-github }\n-\n-You can try and help others with their questions in [GitHub Discussions](https://github.com/fastapi/fastapi/discussions/categories/questions?discussions_q=category%3AQuestions+is%3Aunanswered).\n-\n-In many cases you might already know the answer for those questions. 🤓\n-\n-If you are helping a lot of people with their questions, you will become an official [FastAPI Expert](fastapi-people.md#fastapi-experts). 🎉\n-\n-Just remember, the most important point is: try to be kind. 🤗\n-\n-### How to Help { #how-to-help }\n-\n-Follow the [guide on how to help](https://tiangolo.com/open-source/help/#help-others-with-questions-in-github) here.\n-\n ## Ask Questions { #ask-questions }\n \n You can [create a new question](https://github.com/fastapi/fastapi/discussions/new?category=questions) in the GitHub repository, for example to:\n@@ -85,3 +71,9 @@ Keep in mind that as chats allow more \"free conversation\", it's easy to ask ques\n In GitHub, the template will guide you to write the right question so that you can more easily get a good answer, or even solve the problem yourself even before asking.\n \n Conversations in the chat systems are also not as easily searchable as in GitHub, they get lost.\n+\n+## Try FastAPI Cloud { #try-fastapi-cloud }\n+\n+The main funding for FastAPI and friends comes from [**FastAPI Cloud**](https://fastapicloud.com), a platform to deploy FastAPI applications in a simple and fast way, with a single command, `fastapi deploy`.\n+\n+FastAPI Cloud is built by the same team behind FastAPI. You can try it and consider it for your projects.\n\nFile: docs/en/docs/management.md\n@@ -13,13 +13,3 @@ I normally give the final review to each PR before merging them. I make the fina\n There's a team of people that help manage and maintain the project. 😎\n \n Learn more about it in [tiangolo.com - GitHub FastAPI](https://tiangolo.com/github-fastapi/).\n-\n-## FastAPI Experts\n-\n-The people that help others the most in GitHub Discussions can become [**FastAPI Experts**](./fastapi-people.md#fastapi-experts).\n-\n-This is normally the best way to contribute to the project.\n-\n-## External Help\n-\n-External help is very much appreciated. There are many ways to [help](./help-fastapi.md). ☕️\n\nFile: docs/en/mkdocs.yml\n@@ -223,9 +223,9 @@ nav:\n   - reference/staticfiles.md\n   - reference/templating.md\n   - reference/testclient.md\n-- fastapi-people.md\n - \"\":\n   - resources/index.md\n+  - fastapi-people.md\n   - help-fastapi.md\n   - contributing.md\n   - translations.md\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "866b7a3d0ce1025a3811f23aea4846d01a2b16a8",
@@ -3802,7 +3802,7 @@
       "fastapi/__init__.py"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,8 @@ hide:\n \n ## Latest Changes\n \n+## 0.139.2 (2026-07-16)\n+\n ### Fixes\n \n * 🐛 Refactor router route building to make it thread-safe, mainly relevant for tests running in parallel threads (uncommon). PR [#16013](https://github.com/fastapi/fastapi/pull/16013) by [@tiangolo](https://github.com/tiangolo).\n\nFile: fastapi/__init__.py\n@@ -1,6 +1,6 @@\n \"\"\"FastAPI framework, high performance, easy to learn, fast to code, ready for production\"\"\"\n \n-__version__ = \"0.139.1\"\n+__version__ = \"0.139.2\"\n \n from starlette import status as status\n \n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "7b3effea754619f0c305af576be23a51865292a3",
@@ -3813,7 +3813,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,10 @@ hide:\n \n ## Latest Changes\n \n+### Fixes\n+\n+* 🐛 Refactor router route building to make it thread-safe, mainly relevant for tests running in parallel threads (uncommon). PR [#16013](https://github.com/fastapi/fastapi/pull/16013) by [@tiangolo](https://github.com/tiangolo).\n+\n ## 0.139.1 (2026-07-16)\n \n ### Fixes\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "7fe315c21afb8a57a2b559772e0f7ced7e5d071a",
@@ -3825,7 +3825,7 @@
       "tests/test_router_include_context.py"
     ],
     "diff": "\nFile: fastapi/routing.py\n@@ -7,6 +7,7 @@ import inspect\n import json\n import os\n import stat\n+import threading\n import types\n from collections.abc import (\n     AsyncIterator,\n@@ -1571,6 +1572,9 @@ class RouteContext:\n class _IncludedRouter(BaseRoute):\n     original_router: \"APIRouter\"\n     include_context: _RouterIncludeContext\n+    _effective_routes_lock: Any = field(\n+        default_factory=threading.Lock, repr=False, compare=False\n+    )\n     _effective_candidates: list[\"_EffectiveRouteContext | _IncludedRouter\"] = field(\n         default_factory=list\n     )\n@@ -1584,44 +1588,53 @@ class _IncludedRouter(BaseRoute):\n         routes_version = self.original_router._get_routes_version()\n         if routes_version == self._effective_candidates_version:\n             return self._effective_candidates\n-        self._effective_candidates = []\n-        candidates = self.original_router.routes\n-        for route in candidates:\n-            if isinstance(route, _IncludedRouter):\n-                child_context = self.include_context.combine(route.include_context)\n-                child_branch = _IncludedRouter(\n-                    original_router=route.original_router,\n-                    include_context=child_context,\n-                )\n-                self._effective_candidates.append(child_branch)\n-                continue\n-            route_context = self._build_effective_context(route)\n-            if route_context is not None:\n-                self._effective_candidates.append(route_context)\n-        self._effective_candidates_version = routes_version\n-        return self._effective_candidates\n+        with self._effective_routes_lock:\n+            routes_version = self.original_router._get_routes_version()\n+            if routes_version == self._effective_candidates_version:\n+                return self._effective_candidates\n+            effective_candidates: list[_EffectiveRouteContext | _IncludedRouter] = []\n+            for route in self.original_router.routes:\n+                if isinstance(route, _IncludedRouter):\n+                    child_context = self.include_context.combine(route.include_context)\n+                    child_branch = _IncludedRouter(\n+                        original_router=route.original_router,\n+                        include_context=child_context,\n+                    )\n+                    effective_candidates.append(child_branch)\n+                    continue\n+                route_context = self._build_effective_context(route)\n+                if route_context is not None:\n+                    effective_candidates.append(route_context)\n+            self._effective_candidates = effective_candidates\n+            self._effective_candidates_version = routes_version\n+            return effective_candidates\n \n     def effective_low_priority_routes(self) -> list[\"_EffectiveRouteContext\"]:\n         routes_version = self.original_router._get_routes_version()\n         if routes_version == self._effective_low_priority_routes_version:\n             return self._effective_low_priority_routes\n-        self._effective_low_priority_routes = []\n-        for route in self.original_router._low_priority_routes:\n-            route_context = self._build_effective_context(route)\n-            if route_context is not None:\n-                self._effective_low_priority_routes.append(route_context)\n-        for route in self.original_router.routes:\n-            if isinstance(route, _IncludedRouter):\n-                child_context = self.include_context.combine(route.include_context)\n-                child_branch = _IncludedRouter(\n-                    original_router=route.original_router,\n-                    include_context=child_context,\n-                )\n-                self._effective_low_priority_routes.extend(\n-                    child_branch.effective_low_priority_routes()\n-                )\n-        self._effective_low_priority_routes_version = routes_version\n-        return self._effective_low_priority_routes\n+        with self._effective_routes_lock:\n+            routes_version = self.original_router._get_routes_version()\n+            if routes_version == self._effective_low_priority_routes_version:\n+                return self._effective_low_priority_routes\n+            effective_low_priority_routes: list[_EffectiveRouteContext] = []\n+            for route in self.original_router._low_priority_routes:\n+                route_context = self._build_effective_context(route)\n+                if route_context is not None:\n+                    effective_low_priority_routes.append(route_context)\n+            for route in self.original_router.routes:\n+                if isinstance(route, _IncludedRouter):\n+                    child_context = self.include_context.combine(route.include_context)\n+                    child_branch = _IncludedRouter(\n+                        original_router=route.original_router,\n+                        include_context=child_context,\n+                    )\n+                    effective_low_priority_routes.extend(\n+                        child_branch.effective_low_priority_routes()\n+                    )\n+            self._effective_low_priority_routes = effective_low_priority_routes\n+            self._effective_low_priority_routes_version = routes_version\n+            return effective_low_priority_routes\n \n     def _build_effective_context(\n         self, route: BaseRoute\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "c48e67b1ce9c03fc9bd4b1ac72350e51ad5a6e8a",
@@ -3837,7 +3837,7 @@
       "fastapi/__init__.py"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,8 @@ hide:\n \n ## Latest Changes\n \n+## 0.139.1 (2026-07-16)\n+\n ### Fixes\n \n * 🐛 Fix frontend fallback support for doted paths like `/users/john.doe`. PR [#16011](https://github.com/fastapi/fastapi/pull/16011) by [@tiangolo](https://github.com/tiangolo).\n\nFile: fastapi/__init__.py\n@@ -1,6 +1,6 @@\n \"\"\"FastAPI framework, high performance, easy to learn, fast to code, ready for production\"\"\"\n \n-__version__ = \"0.139.0\"\n+__version__ = \"0.139.1\"\n \n from starlette import status as status\n \n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "2acc4fbf155caf016e3bd2602c0d2ec52723e635",
@@ -3848,7 +3848,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,10 @@ hide:\n \n ## Latest Changes\n \n+### Fixes\n+\n+* 🐛 Fix frontend fallback support for doted paths like `/users/john.doe`. PR [#16011](https://github.com/fastapi/fastapi/pull/16011) by [@tiangolo](https://github.com/tiangolo).\n+\n ### Docs\n \n * 📝 Fix topic repository list not being displayed and `skip_users` not being applied. PR [#15995](https://github.com/fastapi/fastapi/pull/15995) by [@YuriiMotov](https://github.com/YuriiMotov).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "eb75fd078e83aed935016bcdf0705cd58bbf0d0e",
@@ -3861,7 +3861,7 @@
       "tests/test_frontend.py"
     ],
     "diff": "\nFile: docs/en/docs/tutorial/frontend.md\n@@ -52,7 +52,7 @@ For that, use `fallback=\"index.html\"`:\n \n {* ../../docs_src/frontend/tutorial002_py310.py hl[5] *}\n \n-**FastAPI** uses this fallback only for `GET` and `HEAD` requests that look like browser navigation. Missing files like JavaScript, CSS, and images still return `404`.\n+**FastAPI** uses this fallback only for `GET` and `HEAD` requests that explicitly accept HTML with `Accept: text/html` or `Accept: application/xhtml+xml`, as browser navigation requests normally do. Missing files like JavaScript, CSS, and images still return `404`.\n \n Requests with other methods, like `POST` or `PUT`, to paths that only match the frontend fallback also return `404`. Regular **FastAPI** *path operations* still have higher priority than frontend routes.\n \n\nFile: fastapi/routing.py\n@@ -1984,24 +1984,13 @@ def _iter_accept_media_types(accept: str) -> Iterator[tuple[str, float]]:\n \n \n def _is_frontend_navigation_request(scope: Scope) -> bool:\n-    route_path = get_route_path(scope)\n-    final_segment = route_path.rsplit(\"/\", 1)[-1]\n-    if os.path.splitext(final_segment)[1]:\n-        return False\n     request = Request(scope)\n-    wildcard_accepted = False\n-    html_rejected = False\n     for media_type, quality in _iter_accept_media_types(\n         request.headers.get(\"accept\", \"\")\n     ):\n-        if media_type in {\"text/html\", \"application/xhtml+xml\"}:\n-            if quality == 0:\n-                html_rejected = True\n-            else:\n-                return True\n-        elif media_type == \"*/*\" and quality != 0:\n-            wildcard_accepted = True\n-    return wildcard_accepted and not html_rejected\n+        if media_type in {\"text/html\", \"application/xhtml+xml\"} and quality != 0:\n+            return True\n+    return False\n \n \n class _FrontendRoute(BaseRoute):\n\nFile: tests/test_frontend.py\n@@ -32,7 +32,7 @@ def test_frontend_exact_prefix_path_serves_index(tmp_path: Path):\n     app = FastAPI()\n     app.frontend(\"/\", directory=dist)\n \n-    response = TestClient(app).get(\"/app\")\n+    response = TestClient(app).get(\"/app\", headers={\"accept\": \"text/html\"})\n \n     assert response.status_code == 200\n     assert response.text == \"app\"\n@@ -617,15 +617,21 @@ def test_api_route_404_is_not_replaced_by_frontend_fallback(tmp_path: Path):\n     assert response.json() == {\"detail\": \"api missing\"}\n \n \n-def test_index_fallback_for_navigation_request(tmp_path: Path):\n+@pytest.mark.parametrize(\n+    (\"path\", \"accept\"),\n+    [\n+        (\"/dashboard/settings\", \"text/html\"),\n+        (\"/users/jane.doe\", \"text/html\"),\n+        (\"/v/1.2.3\", \"application/xhtml+xml\"),\n+    ],\n+)\n+def test_index_fallback_for_navigation_request(tmp_path: Path, path: str, accept: str):\n     dist = tmp_path / \"dist\"\n     write_file(dist / \"index.html\", \"app shell\")\n     app = FastAPI()\n     app.frontend(\"/\", directory=dist, fallback=\"index.html\")\n \n-    response = TestClient(app).get(\n-        \"/dashboard/settings\", headers={\"accept\": \"text/html\"}\n-    )\n+    response = TestClient(app).get(path, headers={\"accept\": accept})\n \n     assert response.status_code == 200\n     assert response.text == \"app shell\"\n@@ -638,7 +644,8 @@ def test_index_fallback_parses_accept_parameters(tmp_path: Path):\n     app.frontend(\"/\", directory=dist, fallback=\"index.html\")\n \n     response = TestClient(app).get(\n-        \"/dashboard/settings\", headers={\"accept\": \"text/html; q=0.8\"}\n+        \"/dashboard/settings\",\n+        headers={\"accept\": \"text/html; charset=utf-8; q=0.8\"},\n     )\n \n     assert response.status_code == 200\n@@ -697,10 +704,10 @@ def test_index_fallback_respects_explicit_xhtml_rejection_with_wildcard(\n         (\"/assets/missing.css\", \"text/css\"),\n         (\"/assets/missing.png\", \"image/png\"),\n         (\"/api/missing\", \"application/json\"),\n-        (\"/users/jane.doe\", \"text/html\"),\n+        (\"/dashboard/settings\", \"\"),\n     ],\n )\n-def test_index_fallback_does_not_handle_asset_like_or_non_html_requests(\n+def test_index_fallback_requires_explicit_html_acceptance(\n     tmp_path: Path, path: str, accept: str\n ):\n     dist = tmp_path / \"dist\"\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "9b8410bdc9fa1fd679ea7e65b926535c7045ab87",
@@ -3872,7 +3872,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -7,6 +7,10 @@ hide:\n \n ## Latest Changes\n \n+### Docs\n+\n+* 📝 Fix topic repository list not being displayed and `skip_users` not being applied. PR [#15995](https://github.com/fastapi/fastapi/pull/15995) by [@YuriiMotov](https://github.com/YuriiMotov).\n+\n ### Translations\n \n * 🌐 Update translations for tr (update-outdated). PR [#16005](https://github.com/fastapi/fastapi/pull/16005) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "e24d44cce4092a33b64e9536e96e7608a7dcb9b8",
@@ -3887,7 +3887,7 @@
       "scripts/topic_repos.py"
     ],
     "diff": "\nFile: docs/en/data/skip_users.yml\n@@ -1,3 +1,4 @@\n+users:\n - tiangolo\n - codecov\n - github-actions\n\nFile: docs/en/data/topic_repos.yml\n@@ -1,3 +1,4 @@\n+repos:\n - name: headroom\n   html_url: https://github.com/headroomlabs-ai/headroom\n   stars: 55017\n\nFile: docs/en/docs/external-links.md\n@@ -23,7 +23,7 @@ But now that FastAPI is the backend framework with the most GitHub stars across\n \n Most starred [GitHub repositories with the topic `fastapi`](https://github.com/topics/fastapi):\n \n-{% for repo in topic_repos %}\n+{% for repo in topic_repos.repos %}\n \n <a href={{repo.html_url}} target=\"_blank\">★ {{repo.stars}} - {{repo.name}}</a> by <a href={{repo.owner_html_url}} target=\"_blank\">@{{repo.owner_login}}</a>.\n \n\nFile: docs/en/docs/fastapi-people.md\n@@ -97,7 +97,7 @@ These are the users that have been [helping others the most with questions in Gi\n \n {% for user in people.last_month_experts[:10] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Questions replied: {{ user.count }}</div></div>\n \n@@ -115,7 +115,7 @@ These are the users that have been [helping others the most with questions in Gi\n \n {% for user in people.three_months_experts[:10] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Questions replied: {{ user.count }}</div></div>\n \n@@ -133,7 +133,7 @@ These are the users that have been [helping others the most with questions in Gi\n \n {% for user in people.six_months_experts[:10] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Questions replied: {{ user.count }}</div></div>\n \n@@ -151,7 +151,7 @@ These are the users that have been [helping others the most with questions in Gi\n \n {% for user in people.one_year_experts[:20] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Questions replied: {{ user.count }}</div></div>\n \n@@ -171,7 +171,7 @@ These are the users that have [helped others the most with questions in GitHub](\n \n {% for user in people.experts[:50] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Questions replied: {{ user.count }}</div></div>\n \n@@ -193,7 +193,7 @@ They have contributed source code, documentation, etc. 📦\n \n {% for user in (contributors.values() | list)[:50] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Pull Requests: {{ user.count }}</div></div>\n \n@@ -214,7 +214,7 @@ Translation reviewers have the **power to approve translations** of the document\n <div class=\"user-list user-list-center\">\n {% for user in (translation_reviewers.values() | list)[:50] %}\n \n-{% if user.login not in skip_users %}\n+{% if user.login not in skip_users.users %}\n \n <div class=\"user\"><a href=\"{{ user.url }}\"><div class=\"avatar-wrapper\"><img src=\"{{ user.avatarUrl }}\"/></div><div class=\"title\">@{{ user.login }}</div></a> <div class=\"count\">Reviews: {{ user.count }}</div></div>\n \n\nFile: scripts/topic_repos.py\n@@ -44,7 +44,7 @@ def main() -> None:\n                 owner_html_url=repo.owner.html_url,\n             )\n         )\n-    data = [repo.model_dump() for repo in final_repos]\n+    data = {\"repos\": [repo.model_dump() for repo in final_repos]}\n \n     # Local development\n     # repos_path = Path(\"../docs/en/data/topic_repos.yml\")\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "93b78f8646dea4543cc4d938f7e29b8547749a99",
@@ -3898,7 +3898,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for tr (update-outdated). PR [#16005](https://github.com/fastapi/fastapi/pull/16005) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for zh-hant (update-outdated). PR [#15996](https://github.com/fastapi/fastapi/pull/15996) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for fr (update-outdated). PR [#16006](https://github.com/fastapi/fastapi/pull/16006) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for de (update-outdated). PR [#15999](https://github.com/fastapi/fastapi/pull/15999) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "b959b443577c5f2b870cdef13219b98aa32f8943",
@@ -3909,7 +3909,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for zh-hant (update-outdated). PR [#15996](https://github.com/fastapi/fastapi/pull/15996) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for fr (update-outdated). PR [#16006](https://github.com/fastapi/fastapi/pull/16006) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for de (update-outdated). PR [#15999](https://github.com/fastapi/fastapi/pull/15999) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ko (update-outdated). PR [#16004](https://github.com/fastapi/fastapi/pull/16004) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "20d332cb2e33ed5e6a406cffafa79f537852a307",
@@ -3920,7 +3920,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for fr (update-outdated). PR [#16006](https://github.com/fastapi/fastapi/pull/16006) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for de (update-outdated). PR [#15999](https://github.com/fastapi/fastapi/pull/15999) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ko (update-outdated). PR [#16004](https://github.com/fastapi/fastapi/pull/16004) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for zh (update-outdated). PR [#16001](https://github.com/fastapi/fastapi/pull/16001) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "061eb10016f5cd680a7796ba0320100ddce00710",
@@ -3931,7 +3931,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for de (update-outdated). PR [#15999](https://github.com/fastapi/fastapi/pull/15999) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ko (update-outdated). PR [#16004](https://github.com/fastapi/fastapi/pull/16004) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for zh (update-outdated). PR [#16001](https://github.com/fastapi/fastapi/pull/16001) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for uk (update-outdated). PR [#16003](https://github.com/fastapi/fastapi/pull/16003) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "8f93206768d362c75ba38e7c66a3e104df56222e",
@@ -3942,7 +3942,7 @@
       "docs/tr/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/tr/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ Bu örnekte frontend path'leri `/app` altında sunulur.\n \n Uygulamadaki herhangi bir normal *path operation*, diğer router'larda olanlar dahil, yine öncelikli olur.\n \n+## Dependencies ve Middleware { #dependencies-and-middleware }\n+\n+Frontend response'ları normal **FastAPI** uygulaması içinde çalışır, bu yüzden HTTP middleware onlara uygulanır.\n+\n+Uygulamadan, bir `APIRouter`'dan ve `include_router()`'dan gelen dependencies de frontend response'larına uygulanır. Bu, bir frontend'i cookie authentication veya benzeri bir yöntemle korumak için kullanışlı olabilir.\n+\n ## Yalnızca Statik Build Çıktısı { #static-build-output-only }\n \n `app.frontend()`, frontend build'iniz tarafından önceden oluşturulmuş dosyaları sunar.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "5ca69d462685929d2c418a0a393d9c13d3d24504",
@@ -3953,7 +3953,7 @@
       "docs/zh-hant/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/zh-hant/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n 應用程式中的任何一般*路徑操作*仍會優先，包括其他 router 中的路徑操作。\n \n+## 依賴項與中介軟體 { #dependencies-and-middleware }\n+\n+前端回應會在一般的 **FastAPI** 應用程式內執行，因此 HTTP middleware 會套用到它們。\n+\n+來自 app、`APIRouter` 和 `include_router()` 的 dependencies 也會套用到前端回應。這對使用 cookie authentication 或類似方式保護前端很有用。\n+\n ## 僅限靜態建置輸出 { #static-build-output-only }\n \n `app.frontend()` 會提供你的前端建置已經產生的檔案。\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "38c668601586dbdf38a6d8c4200c6ab6ab745e1b",
@@ -3964,7 +3964,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for ko (update-outdated). PR [#16004](https://github.com/fastapi/fastapi/pull/16004) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for zh (update-outdated). PR [#16001](https://github.com/fastapi/fastapi/pull/16001) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for uk (update-outdated). PR [#16003](https://github.com/fastapi/fastapi/pull/16003) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ja (update-outdated). PR [#15998](https://github.com/fastapi/fastapi/pull/15998) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "1bea40556e933861fe5b66e91b04a84c766d6af6",
@@ -3975,7 +3975,7 @@
       "docs/fr/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/fr/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ Dans cet exemple, les chemins frontend sont servis sous `/app`.\n \n Tous les *chemins d'accès* réguliers dans l'application seront toujours prioritaires, y compris dans d'autres routers.\n \n+## Dépendances et middleware { #dependencies-and-middleware }\n+\n+Les réponses frontend s'exécutent au sein de l'application **FastAPI** normale, donc le middleware HTTP s'applique à elles.\n+\n+Les dépendances de l'application, d'un `APIRouter` et de `include_router()` s'appliquent également aux réponses frontend. Cela peut être utile pour protéger un frontend avec une authentification par cookie ou similaire.\n+\n ## Sortie de build statique uniquement { #static-build-output-only }\n \n `app.frontend()` sert des fichiers déjà générés par votre build frontend.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "3330e247ce1984f2e9bedeb20c6dbdedf3662cfa",
@@ -3986,7 +3986,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for zh (update-outdated). PR [#16001](https://github.com/fastapi/fastapi/pull/16001) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for uk (update-outdated). PR [#16003](https://github.com/fastapi/fastapi/pull/16003) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ja (update-outdated). PR [#15998](https://github.com/fastapi/fastapi/pull/15998) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for pt (update-outdated). PR [#16000](https://github.com/fastapi/fastapi/pull/16000) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "569630f6463ff03bd711ad8dd07af6f074410124",
@@ -3997,7 +3997,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for uk (update-outdated). PR [#16003](https://github.com/fastapi/fastapi/pull/16003) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ja (update-outdated). PR [#15998](https://github.com/fastapi/fastapi/pull/15998) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for pt (update-outdated). PR [#16000](https://github.com/fastapi/fastapi/pull/16000) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for es (update-outdated). PR [#15997](https://github.com/fastapi/fastapi/pull/15997) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "362c6f1d3f11b1426cf18315568947e9e64894f3",
@@ -4008,7 +4008,7 @@
       "docs/de/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/de/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ In diesem Beispiel werden Frontend-Pfade unter `/app` bereitgestellt.\n \n Alle regulären *Pfadoperationen* in der App haben weiterhin Vorrang, auch in anderen Routern.\n \n+## Abhängigkeiten und Middleware { #dependencies-and-middleware }\n+\n+Frontend-Responses laufen innerhalb der normalen **FastAPI**-Anwendung, daher gilt HTTP-Middleware für sie.\n+\n+Abhängigkeiten aus der App, aus einem `APIRouter` und aus `include_router()` gelten ebenfalls für Frontend-Responses. Das kann nützlich sein, um ein Frontend mit Cookie-Authentifizierung oder Ähnlichem zu schützen.\n+\n ## Nur statischer Build-Output { #static-build-output-only }\n \n `app.frontend()` liefert Dateien aus, die bereits von Ihrem Frontend-Build generiert wurden.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "10f30b844b370aa56974c59ec8bb13439de75b96",
@@ -4019,7 +4019,7 @@
       "docs/ko/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/ko/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n 다른 라우터에 있는 것을 포함하여, 애플리케이션의 모든 일반 *경로 처리*가 여전히 우선합니다.\n \n+## 의존성과 미들웨어 { #dependencies-and-middleware }\n+\n+프론트엔드 응답은 일반 **FastAPI** 애플리케이션 안에서 실행되므로 HTTP 미들웨어가 적용됩니다.\n+\n+애플리케이션, `APIRouter`, `include_router()`의 의존성도 프론트엔드 응답에 적용됩니다. 이는 쿠키 인증 등으로 프론트엔드를 보호하는 데 유용할 수 있습니다.\n+\n ## 정적 빌드 출력만 사용하기 { #static-build-output-only }\n \n `app.frontend()`는 프론트엔드 빌드에서 이미 생성된 파일을 제공합니다.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "4cb38a48098f0bce73cd6c7242cb6a4f81a5b4c2",
@@ -4030,7 +4030,7 @@
       "docs/zh/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/zh/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n 应用中的任何常规*路径操作*仍会优先，包括其他 router 中的路径操作。\n \n+## 依赖项和中间件 { #dependencies-and-middleware }\n+\n+前端响应在普通 **FastAPI** 应用内部运行，因此 HTTP 中间件会应用于它们。\n+\n+来自 app、`APIRouter` 和 `include_router()` 的依赖项也会应用于前端响应。这可用于通过 cookie 身份验证或类似方式保护前端。\n+\n ## 仅限静态构建输出 { #static-build-output-only }\n \n `app.frontend()` 提供的是你的前端构建已经生成的文件。\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "745d3d222f52ea61c4e9d1cc19c7196992594085",
@@ -4041,7 +4041,7 @@
       "docs/uk/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/uk/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n Будь-які звичайні *операції шляху* в застосунку все ще матимуть перевагу, включно з операціями в інших роутерах.\n \n+## Залежності та проміжне програмне забезпечення { #dependencies-and-middleware }\n+\n+Фронтенд-відповіді виконуються всередині звичайного застосунку **FastAPI**, тому HTTP-проміжне програмне забезпечення застосовується до них.\n+\n+Залежності із застосунку, з `APIRouter` і з `include_router()` також застосовуються до фронтенд-відповідей. Це може бути корисно для захисту фронтенду за допомогою автентифікації на основі кукі або подібного.\n+\n ## Лише статичний результат збірки { #static-build-output-only }\n \n `app.frontend()` обслуговує файли, вже згенеровані вашою фронтенд-збіркою.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "8458d35c96647a92801b9a243f3bd42a24fc7350",
@@ -4052,7 +4052,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for ja (update-outdated). PR [#15998](https://github.com/fastapi/fastapi/pull/15998) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for pt (update-outdated). PR [#16000](https://github.com/fastapi/fastapi/pull/16000) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for es (update-outdated). PR [#15997](https://github.com/fastapi/fastapi/pull/15997) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ru (update-outdated). PR [#16002](https://github.com/fastapi/fastapi/pull/16002) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "75bdc46293f35d8ca806e4690d6e294d9444492b",
@@ -4063,7 +4063,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for pt (update-outdated). PR [#16000](https://github.com/fastapi/fastapi/pull/16000) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for es (update-outdated). PR [#15997](https://github.com/fastapi/fastapi/pull/15997) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ru (update-outdated). PR [#16002](https://github.com/fastapi/fastapi/pull/16002) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15990](https://github.com/fastapi/fastapi/pull/15990) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "c29b4a17afe51299200fad8e5bc9f5c8822efe4d",
@@ -4074,7 +4074,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for es (update-outdated). PR [#15997](https://github.com/fastapi/fastapi/pull/15997) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for ru (update-outdated). PR [#16002](https://github.com/fastapi/fastapi/pull/16002) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15990](https://github.com/fastapi/fastapi/pull/15990) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15925](https://github.com/fastapi/fastapi/pull/15925) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "3a8ab1f76bc6af6d84101cf21d8180c20f3e6538",
@@ -4085,7 +4085,7 @@
       "docs/ja/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/ja/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n 他の router 内のものを含め、アプリ内の通常の *path operations* は引き続き優先されます。\n \n+## 依存関係とミドルウェア { #dependencies-and-middleware }\n+\n+フロントエンドのレスポンスは通常の **FastAPI** アプリケーション内で実行されるため、HTTP ミドルウェアが適用されます。\n+\n+アプリ、`APIRouter`、および `include_router()` からの依存関係もフロントエンドのレスポンスに適用されます。これは、cookie 認証などでフロントエンドを保護する場合に役立ちます。\n+\n ## 静的ビルド出力のみ { #static-build-output-only }\n \n `app.frontend()` は、フロントエンドのビルドで既に生成されたファイルを配信します。\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "b10d3dac4ce2e17ecd04f65fd92b050ce33ca899",
@@ -4096,7 +4096,7 @@
       "docs/en/docs/release-notes.md"
     ],
     "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -9,6 +9,7 @@ hide:\n \n ### Translations\n \n+* 🌐 Update translations for ru (update-outdated). PR [#16002](https://github.com/fastapi/fastapi/pull/16002) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15990](https://github.com/fastapi/fastapi/pull/15990) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15925](https://github.com/fastapi/fastapi/pull/15925) by [@tiangolo](https://github.com/tiangolo).\n * 🌐 Update translations for hi (add-missing). PR [#15797](https://github.com/fastapi/fastapi/pull/15797) by [@tiangolo](https://github.com/tiangolo).\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "1d02512ce3c5d2ab0cb59ccda44725e7fc3076c7",
@@ -4107,7 +4107,7 @@
       "docs/pt/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/pt/docs/tutorial/frontend.md\n@@ -1,6 +1,6 @@\n # Frontend { #frontend }\n \n-Você pode servir aplicações frontend estáticas com `app.frontend()` ou `router.frontend()`.\n+Você pode servir aplicações frontend estáticas com `app.frontend()` (ou `router.frontend()`).\n \n Isso é útil para ferramentas de frontend que geram arquivos estáticos, como React com Vite, TanStack Router, Astro, Vue, Svelte, Angular, Solid e outras.\n \n@@ -126,6 +126,12 @@ Neste exemplo, os paths de frontend são servidos em `/app`.\n \n Quaisquer *operações de rota* regulares na aplicação ainda terão precedência, inclusive em outros routers.\n \n+## Dependências e Middleware { #dependencies-and-middleware }\n+\n+Responses de frontend são executadas dentro da aplicação **FastAPI** normal, então middlewares HTTP se aplicam a elas.\n+\n+Dependências da aplicação, de um `APIRouter` e de `include_router()` também se aplicam a responses de frontend. Isso pode ser útil para proteger um frontend com autenticação por cookie ou similar.\n+\n ## Apenas Saída de Build Estático { #static-build-output-only }\n \n `app.frontend()` serve arquivos já gerados pelo build do seu frontend.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "24a957b5b01a25718b477897976bff7f032606f3",
@@ -4118,7 +4118,7 @@
       "docs/es/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/es/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ En este ejemplo, los paths frontend se sirven bajo `/app`.\n \n Cualquier *path operation* regular en la app seguirá teniendo prioridad, incluso en otros routers.\n \n+## Dependencias y Middleware { #dependencies-and-middleware }\n+\n+Las responses frontend se ejecutan dentro de la aplicación **FastAPI** normal, así que el middleware HTTP se aplica a ellas.\n+\n+Las dependencias de la app, de un `APIRouter` y de `include_router()` también se aplican a las responses frontend. Esto puede ser útil para proteger un frontend con autenticación por cookie o similar.\n+\n ## Solo salida estática del build { #static-build-output-only }\n \n `app.frontend()` sirve archivos ya generados por tu build del frontend.\n",
-    "is_indexed": 0
+    "is_indexed": 1
   },
   {
     "sha": "2ebfb7a7bc68b5346502676e7a234cd78cf01c26",
@@ -4129,6 +4129,31 @@
       "docs/ru/docs/tutorial/frontend.md"
     ],
     "diff": "\nFile: docs/ru/docs/tutorial/frontend.md\n@@ -126,6 +126,12 @@ npm run build\n \n Любые обычные *операции пути* в приложении всё равно будут иметь приоритет, включая операции в других роутерах.\n \n+## Зависимости и middleware { #dependencies-and-middleware }\n+\n+HTTP-ответы фронтенда выполняются внутри обычного приложения **FastAPI**, поэтому к ним применяется HTTP middleware.\n+\n+Зависимости из приложения, из `APIRouter` и из `include_router()` также применяются к HTTP-ответам фронтенда. Это может быть полезно для защиты фронтенда с помощью аутентификации на основе cookie или похожего механизма.\n+\n ## Только статический результат сборки { #static-build-output-only }\n \n `app.frontend()` отдаёт файлы, уже сгенерированные сборкой вашего фронтенда.\n",
-    "is_indexed": 0
+    "is_indexed": 1
+  },
+  {
+    "sha": "afe41126f624af30038cc8e17b2aaf60ebd4b838",
+    "author": "github-actions[bot]",
+    "date": "2026-07-16T18:39:08+00:00",
+    "message": "📝 Update release notes\n\n[skip ci]\n",
+    "changed_files": [
+      "docs/en/docs/release-notes.md"
+    ],
+    "diff": "\nFile: docs/en/docs/release-notes.md\n@@ -11,6 +11,10 @@ hide:\n \n * 📝 Restructure FastAPI People and related pages. PR [#16015](https://github.com/fastapi/fastapi/pull/16015) by [@tiangolo](https://github.com/tiangolo).\n \n+### Internal\n+\n+* 🔥 Remove now-obsolete scripts to generate data for FastAPI People. PR [#16016](https://github.com/fastapi/fastapi/pull/16016) by [@tiangolo](https://github.com/tiangolo).\n+\n ## 0.139.2 (2026-07-16)\n \n ### Fixes\n",
+    "is_indexed": 1
+  },
+  {
+    "sha": "7f05e26d0898e8e1491df331c2dd4368f5e35054",
+    "author": "Sebastián Ramírez",
+    "date": "2026-07-16T18:38:36+00:00",
+    "message": "🔥 Remove now-obsolete scripts to generate data for FastAPI People (#16016)",
+    "changed_files": [
+      ".github/workflows/contributors.yml",
+      ".github/workflows/people.yml",
+      "scripts/contributors.py",
+      "scripts/people.py"
+    ],
+    "diff": "\nFile: .github/workflows/contributors.yml\n@@ -1,56 +0,0 @@\n-name: FastAPI People Contributors\n-\n-on:\n-  schedule:\n-    - cron: \"0 3 1 * *\"\n-  workflow_dispatch:\n-    inputs:\n-      debug_enabled:\n-        description: \"Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)\"\n-        required: false\n-        default: \"false\"\n-\n-permissions: {}\n-\n-jobs:\n-  job:\n-    if: github.repository_owner == 'fastapi'\n-    runs-on: ubuntu-latest\n-    permissions:\n-      contents: write\n-    steps:\n-      - name: Dump GitHub context\n-        env:\n-          GITHUB_CONTEXT: ${{ toJson(github) }}\n-        run: echo \"$GITHUB_CONTEXT\"\n-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n-        with:\n-          persist-credentials: true # Required for `git push` in `contributors.py`\n-      - name: Set up Python\n-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0\n-        with:\n-          python-version-file: \".python-version\"\n-      - name: Setup uv\n-        uses: astral-sh/setup-uv@d31148d669074a8d0a63714ba94f3201e7020bc3 # v8.3.0\n-        with:\n-          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.\n-          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837\n-          version: \"0.11.18\"\n-          enable-cache: true\n-          cache-dependency-glob: |\n-            pyproject.toml\n-            uv.lock\n-      - name: Install Dependencies\n-        run: uv sync --locked --no-dev --group github-actions\n-      # Allow debugging with tmate\n-      - name: Setup tmate session\n-        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24\n-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}\n-        with:\n-          limit-access-to-actor: true\n-        env:\n-          GITHUB_TOKEN: ${{ secrets.FASTAPI_PR_TOKEN }} # zizmor: ignore[secrets-outside-env]\n-      - name: FastAPI People Contributors\n-        run: uv run ./scripts/contributors.py\n-        env:\n-          GITHUB_TOKEN: ${{ secrets.FASTAPI_PR_TOKEN }} # zizmor: ignore[secrets-outside-env]\n\nFile: .github/workflows/people.yml\n@@ -1,57 +0,0 @@\n-name: FastAPI People\n-\n-on:\n-  schedule:\n-    - cron: \"0 14 1 * *\"\n-  workflow_dispatch:\n-    inputs:\n-      debug_enabled:\n-        description: Run the build with tmate debugging enabled (https://github.com/marketplace/actions/debugging-with-tmate)\n-        required: false\n-        default: \"false\"\n-\n-permissions: {}\n-\n-jobs:\n-  job:\n-    if: github.repository_owner == 'fastapi'\n-    runs-on: ubuntu-latest\n-    permissions:\n-      contents: write\n-    steps:\n-      - name: Dump GitHub context\n-        env:\n-          GITHUB_CONTEXT: ${{ toJson(github) }}\n-        run: echo \"$GITHUB_CONTEXT\"\n-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0\n-        with:\n-          persist-credentials: true # Required for `git push` in `people.py`\n-      - name: Set up Python\n-        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0\n-        with:\n-          python-version-file: \".python-version\"\n-      - name: Setup uv\n-        uses: astral-sh/setup-uv@d31148d669074a8d0a63714ba94f3201e7020bc3 # v8.3.0\n-        with:\n-          # Before upgrading uv version, make sure astral-sh/setup-uv knows its checksum.\n-          # See: https://github.com/astral-sh/setup-uv/issues/851#issuecomment-4282017837\n-          version: \"0.11.18\"\n-          enable-cache: true\n-          cache-dependency-glob: |\n-            pyproject.toml\n-            uv.lock\n-      - name: Install Dependencies\n-        run: uv sync --locked --no-dev --group github-actions\n-      # Allow debugging with tmate\n-      - name: Setup tmate session\n-        uses: mxschmitt/action-tmate@35b54afac29c97fb54faba5b513f8fbd1882f113 # v3.24\n-        if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true' }}\n-        with:\n-          limit-access-to-actor: true\n-        env:\n-          GITHUB_TOKEN: ${{ secrets.FASTAPI_PEOPLE }} # zizmor: ignore[secrets-outside-env]\n-      - name: FastAPI People Experts\n-        run: uv run ./scripts/people.py\n-        env:\n-          GITHUB_TOKEN: ${{ secrets.FASTAPI_PEOPLE }} # zizmor: ignore[secrets-outside-env]\n-          SLEEP_INTERVAL: ${{ vars.PEOPLE_SLEEP_INTERVAL }}\n",
+    "is_indexed": 1
   }
 ]
