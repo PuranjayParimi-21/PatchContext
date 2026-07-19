@@ -244,22 +244,9 @@ HallucinationGuard.calculate_nli_entailment = custom_calculate_nli_entailment
 original_run = PatchContextRAG.run
 
 def custom_run(self, query: str) -> Dict[str, Any]:
-    original_invoke = self.llm.invoke
-    
-    def custom_invoke(messages, *args, **kwargs):
-        from langchain_core.messages import HumanMessage
-        if messages and isinstance(messages[-1], HumanMessage):
-            # Short instruction to avoid pushing over token limit on free models
-            messages[-1].content += "\n\nRespond in summary style with bullet points. Include key data (dates, authors, IDs)."
-        try:
-            return original_invoke(messages, *args, **kwargs)
-        except Exception as e:
-            err = str(e).lower()
-            if "model output" in err or "empty" in err or "tool calls" in err:
-                raise ValueError(f"OpenRouter model returned empty output: {e}")
-            raise
-        
-    self.llm.invoke = custom_invoke
+    # NOTE: Formatting instruction is now baked into prompt.py SYSTEM_PROMPT (rule 4)
+    # We do NOT patch self.llm.invoke because ChatOpenAI is a Pydantic model
+    # and Pydantic v2 raises ValueError on arbitrary attribute assignment.
     try:
         result = original_run(self, query)
     except Exception as e:
@@ -273,8 +260,6 @@ def custom_run(self, query: str) -> Dict[str, Any]:
             "confidence_score": 0.0,
             "latencies": {"total_response_latency": 0.0}
         }
-    finally:
-        self.llm.invoke = original_invoke
         
     # FORCE NLI CONFIDENCE TO VARY ON EVERY QUERY using retrieved_docs hash + query hash
     retrieved_docs = result.get("retrieved_docs", [])

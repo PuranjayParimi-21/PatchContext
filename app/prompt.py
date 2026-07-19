@@ -20,7 +20,9 @@ SYSTEM_PROMPT = (
     "   - For Issues: [Issue <Number>] (e.g. [Issue 101])\n"
     "3. NEVER invent, extrapolate, or hallucinate citations. Every cited SHA, PR number, or Issue number "
     "MUST correspond to an actual document in the retrieved context. If it is not in the context, do NOT cite it.\n"
-    "4. Keep your answer professional, technical, and concise."
+    "4. Keep your answer professional, technical, and concise. "
+    "Present your response as a clear summary with bullet points. "
+    "Preserve key original data such as dates, authors, commit messages, PR titles, and labels."
 )
 
 QA_PROMPT = ChatPromptTemplate.from_messages([
