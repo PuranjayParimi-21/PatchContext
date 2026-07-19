@@ -2,6 +2,9 @@ import time
 import logging
 import re
 import hashlib
+import os
+import git
+import requests
 from typing import List, Dict, Any, Tuple, Optional
 from langchain_core.documents import Document
 from langchain_community.retrievers import BM25Retriever
@@ -9,6 +12,7 @@ from langchain_community.vectorstores import FAISS
 from sentence_transformers import CrossEncoder
 from app.database import DatabaseManager
 from app.parser import DocumentParser
+from app.config import settings
 
 logger = logging.getLogger("PatchContext.Retriever")
 
@@ -150,6 +154,102 @@ class HybridRetriever:
         else:
             row = self.db.get_item(item_type, item_id)
             
+        # Self-healing dynamic imports for unindexed entities
+        if not row:
+            if item_type == "commit":
+                logger.info(f"Commit '{item_id}' not found in SQLite DB. Attempting dynamic import from local git repo...")
+                try:
+                    git_repo_path = settings.local_repo_path
+                    if os.path.exists(git_repo_path):
+                        repo = git.Repo(git_repo_path)
+                        commit = repo.commit(item_id)
+                        sha = commit.hexsha
+                        
+                        # Compute files and diff
+                        changed_files = []
+                        diff_text = ""
+                        if commit.parents:
+                            diffs = commit.parents[0].diff(commit, create_patch=True)
+                        else:
+                            diffs = commit.diff(None, create_patch=True)
+                            
+                        for d in diffs:
+                            a_path = d.a_path or ""
+                            b_path = d.b_path or ""
+                            path = b_path if b_path else a_path
+                            if path:
+                                changed_files.append(path)
+                            if d.diff:
+                                try:
+                                    patch = d.diff.decode('utf-8', errors='ignore')
+                                    if len(diff_text) + len(patch) < 6000:
+                                        diff_text += f"\nFile: {path}\n{patch}"
+                                except Exception:
+                                    pass
+                                    
+                        # Insert into SQLite database so it exists
+                        self.db.insert_commit(
+                            sha=sha,
+                            author=commit.author.name,
+                            date=commit.committed_datetime.isoformat(),
+                            message=commit.message or "",
+                            changed_files=changed_files,
+                            diff=diff_text
+                        )
+                        logger.info(f"Successfully dynamically indexed commit {sha[:7]} into SQLite database.")
+                        row = self.db.get_item("commit", sha)
+                except Exception as e:
+                    logger.error(f"Failed to dynamically import commit '{item_id}' from git: {e}")
+                    
+            elif item_type == "pr" and settings.github_token and settings.github_token != "missing-api-key":
+                logger.info(f"PR '{item_id}' not found in SQLite DB. Attempting dynamic import from GitHub API...")
+                try:
+                    repo_slug = settings.github_repository
+                    url = f"https://api.github.com/repos/{repo_slug}/pulls/{item_id}"
+                    headers = {"Authorization": f"Bearer {settings.github_token}"}
+                    resp = requests.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        pr_data = resp.json()
+                        self.db.insert_pr(
+                            number=int(item_id),
+                            title=pr_data.get("title", ""),
+                            body=pr_data.get("body", ""),
+                            comments=[],
+                            review_comments=[],
+                            merged_commit_sha=pr_data.get("merge_commit_sha"),
+                            created_at=pr_data.get("created_at", "")
+                        )
+                        merged_sha = pr_data.get("merge_commit_sha")
+                        if merged_sha:
+                            self.db.insert_relationship("pr", item_id, "commit", merged_sha, "merges")
+                            
+                        logger.info(f"Successfully dynamically indexed PR #{item_id} from GitHub API.")
+                        row = self.db.get_item("pr", item_id)
+                except Exception as e:
+                    logger.error(f"Failed to dynamically import PR #{item_id}: {e}")
+                    
+            elif item_type == "issue" and settings.github_token and settings.github_token != "missing-api-key":
+                logger.info(f"Issue '{item_id}' not found in SQLite DB. Attempting dynamic import from GitHub API...")
+                try:
+                    repo_slug = settings.github_repository
+                    url = f"https://api.github.com/repos/{repo_slug}/issues/{item_id}"
+                    headers = {"Authorization": f"Bearer {settings.github_token}"}
+                    resp = requests.get(url, headers=headers)
+                    if resp.status_code == 200:
+                        issue_data = resp.json()
+                        self.db.insert_issue(
+                            number=int(item_id),
+                            title=issue_data.get("title", ""),
+                            body=issue_data.get("body", ""),
+                            comments=[],
+                            labels=[l.get("name") for l in issue_data.get("labels", [])],
+                            created_at=issue_data.get("created_at", "")
+                        )
+                        logger.info(f"Successfully dynamically indexed Issue #{item_id} from GitHub API.")
+                        row = self.db.get_item("issue", item_id)
+                except Exception as e:
+                    logger.error(f"Failed to dynamically import Issue #{item_id}: {e}")
+                    
         if not row:
             logger.warning(f"SQLite lookup: no database record found for {item_type} '{item_id}'.")
             return []
