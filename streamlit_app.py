@@ -249,17 +249,30 @@ def custom_run(self, query: str) -> Dict[str, Any]:
     def custom_invoke(messages, *args, **kwargs):
         from langchain_core.messages import HumanMessage
         if messages and isinstance(messages[-1], HumanMessage):
-            instruction = (
-                "\n\nFormatting Instruction: Please present your response in a clear, concise "
-                "summary style. Ensure all key original data (such as dates, authors, commit messages, "
-                "PR titles, labels, or diff summaries) is preserved and clearly highlighted in bullet points."
-            )
-            messages[-1].content += instruction
-        return original_invoke(messages, *args, **kwargs)
+            # Short instruction to avoid pushing over token limit on free models
+            messages[-1].content += "\n\nRespond in summary style with bullet points. Include key data (dates, authors, IDs)."
+        try:
+            return original_invoke(messages, *args, **kwargs)
+        except Exception as e:
+            err = str(e).lower()
+            if "model output" in err or "empty" in err or "tool calls" in err:
+                raise ValueError(f"OpenRouter model returned empty output: {e}")
+            raise
         
     self.llm.invoke = custom_invoke
     try:
         result = original_run(self, query)
+    except Exception as e:
+        logger.error(f"Pipeline error in custom_run: {e}")
+        result = {
+            "question": query,
+            "answer": "The language model is temporarily unavailable. Please try again in a moment.",
+            "original_answer": str(e),
+            "retrieved_docs": [],
+            "citations": {"commits": {}, "prs": {}, "issues": {}},
+            "confidence_score": 0.0,
+            "latencies": {"total_response_latency": 0.0}
+        }
     finally:
         self.llm.invoke = original_invoke
         
@@ -268,7 +281,11 @@ def custom_run(self, query: str) -> Dict[str, Any]:
     doc_hash = sum(abs(hash(doc.page_content[:100])) for doc in retrieved_docs) % 100 if retrieved_docs else 0
     query_hash = abs(hash(query.strip().lower())) % 100
     
-    if result.get("answer") in ("I couldn't find sufficient evidence.", "System is not initialized. Please load repository data and build the vector index first."):
+    if result.get("answer") in (
+        "I couldn't find sufficient evidence.",
+        "System is not initialized. Please load repository data and build the vector index first.",
+        "The language model is temporarily unavailable. Please try again in a moment."
+    ):
         score = 0.0
     else:
         # Vary dynamically between 0.65 and 0.97 based on query + retrieved docs

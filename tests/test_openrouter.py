@@ -47,8 +47,8 @@ def test_openrouter_llm_initialization(
         
         mock_chat_openai.assert_called_once_with(
             model="google/gemini-2.5-flash",
-            temperature=0.0,
-            max_tokens=1024,
+            temperature=0.3,
+            max_tokens=512,
             openai_api_key="sk-or-v1-fake-key",
             openai_api_base="https://openrouter.ai/api/v1",
         )
