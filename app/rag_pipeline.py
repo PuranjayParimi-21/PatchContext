@@ -108,28 +108,38 @@ class PatchContextRAG:
                 "latencies": latencies
             }
             
-        context_str = "\n\n".join([
-            f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content}"
-            for doc in retrieved_docs
-        ])
+        # Truncate context to prevent exceeding free model token limits (~2500 chars per doc, max 4 docs)
+        MAX_CONTEXT_CHARS = 8000
+        context_parts = [
+            f"Source [{doc.metadata.get('type').upper()} #{doc.metadata.get('id')}]:\n{doc.page_content[:2000]}"
+            for doc in retrieved_docs[:6]
+        ]
+        context_str = "\n\n".join(context_parts)[:MAX_CONTEXT_CHARS]
             
         # 2. LLM Generation
         t_llm_start = time.perf_counter()
         provider = settings.llm_provider.lower()
         logger.info(f"Generating answer via LLM ({provider})...")
-            
+        
+        llm_error = False
         try:
             prompt_val = QA_PROMPT.format_prompt(context=context_str, question=query)
             response = self.llm.invoke(prompt_val.to_messages())
             raw_answer = response.content
+            # Treat empty model response as an error
+            if not raw_answer or not raw_answer.strip():
+                raise ValueError("Model returned an empty response.")
         except Exception as e:
             logger.error(f"Error generating answer with {self.llm.model_name}: {e}")
+            llm_error = True
             if provider == "openrouter":
+                # Valid free models available on OpenRouter as of 2025
                 fallbacks = [
-                    "tencent/hy3:free",
-                    "cohere/north-mini-code:free",
+                    "meta-llama/llama-3.1-8b-instruct:free",
                     "meta-llama/llama-3.2-3b-instruct:free",
-                    "meta-llama/llama-3.3-70b-instruct:free"
+                    "microsoft/phi-3-mini-128k-instruct:free",
+                    "google/gemma-2-9b-it:free",
+                    "qwen/qwen-2-7b-instruct:free",
                 ]
                 success = False
                 for fallback_model in fallbacks:
@@ -138,53 +148,67 @@ class PatchContextRAG:
                     logger.info(f"Retrying with fallback model: {fallback_model}...")
                     self.llm.model_name = fallback_model
                     try:
+                        # Brief pause to avoid rate limiting
+                        time.sleep(1.5)
                         response = self.llm.invoke(prompt_val.to_messages())
                         raw_answer = response.content
+                        # Also treat empty fallback response as failure
+                        if not raw_answer or not raw_answer.strip():
+                            raise ValueError(f"Fallback model {fallback_model} returned an empty response.")
                         success = True
+                        llm_error = False
                         logger.info(f"Successfully generated answer using fallback model: {fallback_model}")
                         break
                     except Exception as fallback_err:
+                        err_str = str(fallback_err)
+                        if "429" in err_str or "rate limit" in err_str.lower():
+                            logger.warning(f"Rate limited on {fallback_model}. Waiting 3s...")
+                            time.sleep(3.0)
+                        elif "model output" in err_str.lower() or "empty" in err_str.lower():
+                            logger.warning(f"Model {fallback_model} returned empty output. Trying next fallback...")
                         logger.error(f"Fallback model {fallback_model} also failed: {fallback_err}")
                 if not success:
-                    raw_answer = f"An error occurred while calling the language model ({provider})."
+                    raw_answer = f"An error occurred while calling the language model. Please try again in a moment."
             else:
-                raw_answer = f"An error occurred while calling the language model ({provider})."
+                raw_answer = f"An error occurred while calling the language model. Please try again in a moment."
         latencies["llm_latency"] = time.perf_counter() - t_llm_start
         
         # Automatically attach missing citations from retrieved docs to raw_answer
+        # IMPORTANT: Skip citation appending if LLM failed
         retrieved_citations = []
-        for doc in retrieved_docs:
-            m = doc.metadata
-            dtype = str(m.get("type", "")).lower()
-            did = str(m.get("id", ""))
-            if dtype == "commit":
-                retrieved_citations.append(f"[Commit {did}]")
-            elif dtype == "pr":
-                retrieved_citations.append(f"[PR {did}]")
-            elif dtype == "issue":
-                retrieved_citations.append(f"[Issue {did}]")
-                
-        # Parse what citations are already in the raw_answer
-        existing = self.guard.parse_citations(raw_answer)
-        missing_cits = []
-        for cit in retrieved_citations:
-            temp_parsed = self.guard.parse_citations(cit)
-            already_exists = False
-            for sha in temp_parsed["commits"]:
-                if any(sha.startswith(s) or s.startswith(sha) for s in existing["commits"]):
-                    already_exists = True
-            for pr in temp_parsed["prs"]:
-                if pr in existing["prs"]:
-                    already_exists = True
-            for issue in temp_parsed["issues"]:
-                if issue in existing["issues"]:
-                    already_exists = True
-            if not already_exists:
-                missing_cits.append(cit)
-                
-        if missing_cits:
-            # Append missing citations at the end of raw_answer
-            raw_answer += " (Citations: " + ", ".join(missing_cits) + ")"
+        if not llm_error:
+            for doc in retrieved_docs:
+                m = doc.metadata
+                dtype = str(m.get("type", "")).lower()
+                did = str(m.get("id", ""))
+                if dtype == "commit":
+                    retrieved_citations.append(f"[Commit {did}]")
+                elif dtype == "pr":
+                    retrieved_citations.append(f"[PR {did}]")
+                elif dtype == "issue":
+                    retrieved_citations.append(f"[Issue {did}]")
+                    
+            # Parse what citations are already in the raw_answer
+            existing = self.guard.parse_citations(raw_answer)
+            missing_cits = []
+            for cit in retrieved_citations:
+                temp_parsed = self.guard.parse_citations(cit)
+                already_exists = False
+                for sha in temp_parsed["commits"]:
+                    if any(sha.startswith(s) or s.startswith(sha) for s in existing["commits"]):
+                        already_exists = True
+                for pr in temp_parsed["prs"]:
+                    if pr in existing["prs"]:
+                        already_exists = True
+                for issue in temp_parsed["issues"]:
+                    if issue in existing["issues"]:
+                        already_exists = True
+                if not already_exists:
+                    missing_cits.append(cit)
+                    
+            if missing_cits:
+                # Append missing citations at the end of raw_answer
+                raw_answer += " (Citations: " + ", ".join(missing_cits) + ")"
         
         # 3. Citation Verification (Hallucination Guard)
         logger.info("Verifying citations in generated answer...")
