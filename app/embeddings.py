@@ -11,6 +11,13 @@ def get_embeddings() -> Embeddings:
     provider = settings.embedding_provider.lower() if settings.embedding_provider else "openai"
     model_name = settings.embedding_model if settings.embedding_model else "text-embedding-ada-002"
     
+    # Fallback to local HuggingFace embeddings if OpenAI credentials are not provided
+    if provider == "openai" and not settings.openai_api_key:
+        if not (settings.llm_provider.lower() == "openrouter" and settings.openrouter_api_key):
+            logger.warning("OPENAI_API_KEY is not set. Falling back to local HuggingFace embeddings.")
+            provider = "local"
+            model_name = "sentence-transformers/all-MiniLM-L6-v2"
+            
     if provider in ["local", "huggingface"]:
         # Fallback to a valid HuggingFace model if the model is set to an OpenAI model name
         if "text-embedding-" in model_name or "ada" in model_name:
